@@ -1,0 +1,280 @@
+@import "tailwindcss";
+
+/* ============================================================
+   CONTROL GP — DESIGN SYSTEM
+   Premium Financial SaaS Theme
+   ============================================================ */
+
+@theme {
+  /* Brand Colors */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+
+  /* Semantic Colors */
+  --color-receita: #10b981;
+  --color-despesa: #ef4444;
+  --color-transferencia: #3b82f6;
+  --color-pendente: #f59e0b;
+  --color-pago: #10b981;
+  --color-vencido: #ef4444;
+  --color-cancelado: #6b7280;
+
+  /* Dark Theme */
+  --color-dark-bg: #0a0e1a;
+  --color-dark-surface: #111827;
+  --color-dark-card: #1a1f2e;
+  --color-dark-border: #1e293b;
+  --color-dark-hover: #1e2640;
+  --color-dark-text: #f1f5f9;
+  --color-dark-muted: #94a3b8;
+
+  /* Spacing */
+  --spacing-sidebar: 280px;
+  --spacing-sidebar-collapsed: 72px;
+  --spacing-navbar: 64px;
+  --spacing-bottom-nav: 72px;
+
+  /* Radius */
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-input: 10px;
+  --radius-badge: 8px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.2);
+  --shadow-glow-brand: 0 0 20px rgba(59, 130, 246, 0.3);
+  --shadow-glow-green: 0 0 20px rgba(16, 185, 129, 0.3);
+  --shadow-glow-red: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-dark-bg);
+  color: var(--color-dark-text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar Premium */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Glass Morphism */
+.glass {
+  background: rgba(17, 24, 39, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Gradient Backgrounds */
+.gradient-brand {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+}
+
+.gradient-receita {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+}
+
+.gradient-despesa {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+}
+
+.gradient-dark {
+  background: linear-gradient(180deg, #0a0e1a 0%, #111827 100%);
+}
+
+.gradient-mesh {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s ease-out forwards;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.4s ease-out forwards;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Status Badges */
+.badge-pago {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-pendente {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-vencido {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-cancelado {
+  background: rgba(107, 114, 128, 0.15);
+  color: #9ca3af;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+/* Card Styles */
+.card {
+  background: var(--color-dark-card);
+  border: 1px solid var(--color-dark-border);
+  border-radius: var(--radius-card);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: var(--shadow-card);
+}
+
+/* Button Base */
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  font-weight: 600;
+  border-radius: var(--radius-button);
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow-brand);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Input Styles */
+.input-field {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--color-dark-border);
+  border-radius: var(--radius-input);
+  padding: 12px 16px;
+  color: var(--color-dark-text);
+  font-size: 14px;
+  width: 100%;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.input-field:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.input-field::placeholder {
+  color: #475569;
+}
+
+/* Mobile Bottom Nav */
+@media (max-width: 768px) {
+  .main-content {
+    padding-bottom: var(--spacing-bottom-nav);
+  }
+}
+
+/* Light Theme */
+.light {
+  --color-dark-bg: #f8fafc;
+  --color-dark-surface: #ffffff;
+  --color-dark-card: #ffffff;
+  --color-dark-border: #e2e8f0;
+  --color-dark-hover: #f1f5f9;
+  --color-dark-text: #0f172a;
+  --color-dark-muted: #64748b;
+}
