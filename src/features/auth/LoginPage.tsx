@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -11,13 +11,41 @@ const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Mínimo 6 caracteres'),
 });
-
 type LoginForm = z.infer<typeof loginSchema>;
+
+const fieldStyle: React.CSSProperties = {
+  position: 'relative',
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '0.8125rem',
+  fontWeight: 500,
+  color: '#6b7e99',
+  marginBottom: '0.375rem',
+};
+
+const errorStyle: React.CSSProperties = {
+  fontSize: '0.75rem',
+  color: '#f87171',
+  marginTop: '0.25rem',
+};
+
+const iconStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 12,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  width: 15,
+  height: 15,
+  color: '#2a3d5a',
+  pointerEvents: 'none',
+};
 
 export default function LoginPage() {
   const { signIn, isLoading } = useAuthStore();
   const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
@@ -28,86 +56,138 @@ export default function LoginPage() {
     setError(null);
     const result = await signIn(data.email, data.password);
     if (result.error) {
-      if (result.error === 'ACCESS_DENIED') {
-        navigate('/acesso-negado');
-        return;
-      }
-      setError(result.error === 'Invalid login credentials'
-        ? 'Email ou senha incorretos'
-        : result.error
+      if (result.error === 'ACCESS_DENIED') { navigate('/acesso-negado'); return; }
+      setError(
+        result.error === 'Invalid login credentials'
+          ? 'Email ou senha incorretos'
+          : 'Erro ao entrar. Tente novamente.'
       );
     }
   };
 
   return (
-    <div className="card p-6 sm:p-8">
-      <h2 className="text-lg font-bold text-white mb-1">Entrar</h2>
-      <p className="text-sm text-slate-500 mb-6">Acesse sua conta para continuar</p>
+    <div style={{
+      background: '#121929',
+      border: '1px solid #1a2236',
+      borderRadius: 14,
+      padding: '1.75rem',
+    }}>
+      <h2 style={{
+        fontSize: '1.0625rem',
+        fontWeight: 700,
+        color: '#e2e8f4',
+        marginBottom: '0.25rem',
+        letterSpacing: '-0.01em',
+      }}>
+        Entrar
+      </h2>
+      <p style={{ fontSize: '0.8125rem', color: '#4a5e7a', marginBottom: '1.5rem' }}>
+        Acesse sua conta para continuar
+      </p>
 
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-5 p-3 rounded-lg bg-red-500/8 border border-red-500/15 text-red-400 text-sm"
-        >
-          {error}
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            style={{
+              marginBottom: '1.25rem',
+              padding: '0.625rem 0.875rem',
+              borderRadius: 8,
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.15)',
+              color: '#f87171',
+              fontSize: '0.8125rem',
+            }}
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1.5">Email</label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+          <label style={labelStyle}>Email</label>
+          <div style={fieldStyle}>
+            <Mail style={iconStyle} />
             <input
               {...register('email')}
               type="email"
               placeholder="seu@email.com"
-              className="input-field pl-10"
               autoComplete="email"
+              className="input-field"
+              style={{ paddingLeft: 36 }}
             />
           </div>
-          {errors.email && <p className="text-xs text-red-400 mt-1">{errors.email.message}</p>}
+          {errors.email && <p style={errorStyle}>{errors.email.message}</p>}
         </div>
 
+        {/* Senha */}
         <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1.5">Senha</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+          <label style={labelStyle}>Senha</label>
+          <div style={fieldStyle}>
+            <Lock style={iconStyle} />
             <input
               {...register('password')}
-              type={showPassword ? 'text' : 'password'}
+              type={showPw ? 'text' : 'password'}
               placeholder="••••••••"
-              className="input-field pl-10 pr-10"
               autoComplete="current-password"
+              className="input-field"
+              style={{ paddingLeft: 36, paddingRight: 36 }}
             />
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors p-0.5"
+              onClick={() => setShowPw(!showPw)}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#2a3d5a',
+                padding: 2,
+                display: 'flex',
+                alignItems: 'center',
+              }}
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showPw
+                ? <EyeOff style={{ width: 15, height: 15 }} />
+                : <Eye style={{ width: 15, height: 15 }} />
+              }
             </button>
           </div>
-          {errors.password && <p className="text-xs text-red-400 mt-1">{errors.password.message}</p>}
+          {errors.password && <p style={errorStyle}>{errors.password.message}</p>}
         </div>
 
+        {/* Submit */}
         <button
           type="submit"
           disabled={isLoading}
-          className="btn-primary w-full flex items-center justify-center gap-2 py-3 mt-2"
+          className="btn-primary"
+          style={{ width: '100%', marginTop: '0.25rem', padding: '12px' }}
         >
-          {isLoading ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Entrando...</>
-          ) : (
-            'Entrar'
-          )}
+          {isLoading
+            ? <><Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} /> Entrando...</>
+            : 'Entrar'
+          }
         </button>
       </form>
 
-      <p className="text-center text-sm text-slate-500 mt-6">
+      <p style={{
+        textAlign: 'center',
+        fontSize: '0.8125rem',
+        color: '#4a5e7a',
+        marginTop: '1.25rem',
+      }}>
         Não tem conta?{' '}
-        <Link to="/registro" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+        <Link
+          to="/registro"
+          style={{ color: '#60a5fa', fontWeight: 600, textDecoration: 'none' }}
+        >
           Criar conta
         </Link>
       </p>

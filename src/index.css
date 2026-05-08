@@ -1,71 +1,63 @@
 @import "tailwindcss";
 
 /* ============================================================
-   CONTROL GP — DESIGN SYSTEM
-   Corporate Financial SaaS Theme
+   CONTROL GP — DESIGN SYSTEM CORPORATIVO
    ============================================================ */
 
 @theme {
-  /* Brand Colors */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
+  /* Brand */
   --color-brand-500: #3b82f6;
   --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  --color-brand-400: #60a5fa;
 
-  /* Semantic Colors */
+  /* Semântico */
   --color-receita: #10b981;
   --color-despesa: #ef4444;
-  --color-transferencia: #3b82f6;
   --color-pendente: #f59e0b;
   --color-pago: #10b981;
   --color-vencido: #ef4444;
-  --color-cancelado: #6b7280;
 
-  /* Dark Theme */
-  --color-dark-bg: #080c14;
-  --color-dark-surface: #0f1320;
-  --color-dark-card: #141926;
-  --color-dark-border: #1c2333;
-  --color-dark-hover: #1a2235;
-  --color-dark-text: #e8ecf4;
-  --color-dark-muted: #8892a8;
+  /* Dark Surface */
+  --color-dark-bg:      #080d18;
+  --color-dark-surface: #0d1321;
+  --color-dark-card:    #121929;
+  --color-dark-border:  #1a2236;
+  --color-dark-hover:   #182030;
+  --color-dark-text:    #e2e8f4;
+  --color-dark-muted:   #7a8499;
 
-  /* Spacing */
-  --spacing-sidebar: 256px;
+  /* Layout */
+  --spacing-sidebar:           256px;
   --spacing-sidebar-collapsed: 68px;
-  --spacing-navbar: 56px;
-  --spacing-bottom-nav: 64px;
+  --spacing-navbar:            56px;
+  --spacing-bottom-nav:        64px;
 
   /* Radius */
-  --radius-card: 14px;
+  --radius-card:   14px;
   --radius-button: 10px;
-  --radius-input: 10px;
-  --radius-badge: 6px;
-  --radius-full: 9999px;
+  --radius-input:  10px;
 
   /* Shadows */
-  --shadow-card: 0 2px 16px rgba(0, 0, 0, 0.15);
-  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.25);
-  --shadow-glow-brand: 0 4px 20px rgba(59, 130, 246, 0.2);
-  --shadow-glow-green: 0 4px 16px rgba(16, 185, 129, 0.2);
-  --shadow-glow-red: 0 4px 16px rgba(239, 68, 68, 0.2);
+  --shadow-card:        0 2px 16px rgba(0, 0, 0, 0.2);
+  --shadow-glow-brand:  0 4px 24px rgba(59, 130, 246, 0.2);
+  --shadow-glow-green:  0 4px 16px rgba(16, 185, 129, 0.2);
 }
 
-/* === BASE === */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* ─── RESET ─────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 html {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -77,20 +69,19 @@ body {
   line-height: 1.5;
 }
 
-/* === SCROLLBAR === */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* ─── SCROLLBAR ────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #293040; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #3a4560; }
+::-webkit-scrollbar-thumb { background: #1e2d45; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #2a3f60; }
 
-/* === GLASS === */
+/* ─── GLASS ────────────────────────────────────────── */
 .glass {
-  background: rgba(14, 18, 30, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(10, 15, 28, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.04);
 }
-
 .glass-light {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(12px);
@@ -98,87 +89,55 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* === GRADIENTS === */
-.gradient-brand { background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); }
-.gradient-receita { background: linear-gradient(135deg, #10b981 0%, #34d399 100%); }
-.gradient-despesa { background: linear-gradient(135deg, #ef4444 0%, #f87171 100%); }
-.gradient-dark { background: linear-gradient(180deg, #080c14 0%, #0f1320 100%); }
+/* ─── GRADIENTS ────────────────────────────────────── */
+.gradient-brand   { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+.gradient-receita { background: linear-gradient(135deg, #10b981, #34d399); }
+.gradient-despesa { background: linear-gradient(135deg, #ef4444, #f87171); }
+
+.gradient-dark {
+  background-color: var(--color-dark-bg);
+  background-image: linear-gradient(180deg, #08111f 0%, #0d1321 100%);
+}
 .gradient-mesh {
-  background:
-    radial-gradient(ellipse at 15% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-    radial-gradient(ellipse at 85% 20%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 90%, rgba(16, 185, 129, 0.02) 0%, transparent 50%);
+  background-image:
+    radial-gradient(ellipse at 15% 50%, rgba(59,130,246,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 20%, rgba(99,102,241,0.04) 0%, transparent 50%);
 }
 
-/* === ANIMATIONS === */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.animate-fade-in { animation: fadeIn 0.35s ease-out forwards; }
-
-.skeleton {
-  background: linear-gradient(90deg, #1c2333 25%, #293040 50%, #1c2333 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 8px;
-}
-
-/* === STATUS BADGES === */
-.badge-pago {
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-.badge-pendente {
-  background: rgba(245, 158, 11, 0.12);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.2);
-}
-.badge-vencido {
-  background: rgba(239, 68, 68, 0.12);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-}
-.badge-cancelado {
-  background: rgba(107, 114, 128, 0.12);
-  color: #9ca3af;
-  border: 1px solid rgba(107, 114, 128, 0.2);
-}
-
-/* === CARD === */
+/* ─── CARD ─────────────────────────────────────────── */
 .card {
   background: var(--color-dark-card);
   border: 1px solid var(--color-dark-border);
   border-radius: var(--radius-card);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 .card:hover {
-  border-color: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.12);
 }
 
-/* === BUTTON === */
+/* ─── BUTTON PRIMARY ───────────────────────────────── */
 .btn-primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
   font-weight: 600;
+  font-size: 14px;
   border-radius: var(--radius-button);
-  padding: 10px 20px;
+  padding: 11px 20px;
   border: none;
   cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 14px;
   text-decoration: none;
-  display: inline-block;
+  transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .btn-primary:hover {
+  filter: brightness(1.08);
   box-shadow: var(--shadow-glow-brand);
-  filter: brightness(1.05);
 }
 .btn-primary:active {
   transform: scale(0.98);
@@ -190,15 +149,18 @@ body {
   box-shadow: none;
 }
 
-/* === INPUT === */
+/* ─── INPUT ────────────────────────────────────────── */
 .input-field {
-  background: rgba(12, 17, 28, 0.7);
+  display: block;
+  width: 100%;
+  background: rgba(8, 13, 28, 0.7);
   border: 1px solid var(--color-dark-border);
   border-radius: var(--radius-input);
   padding: 11px 14px;
   color: var(--color-dark-text);
   font-size: 14px;
-  width: 100%;
+  font-family: inherit;
+  line-height: 1.4;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   outline: none;
   -webkit-appearance: none;
@@ -206,49 +168,65 @@ body {
 }
 .input-field:focus {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 .input-field::placeholder {
-  color: #3a4560;
-}
-/* Fix date/select in mobile */
-.input-field[type="date"],
-select.input-field {
-  min-height: 42px;
+  color: #2d3d58;
 }
 
-/* === RESPONSIVE === */
-@media (max-width: 768px) {
+/* ─── BADGES ───────────────────────────────────────── */
+.badge-pago      { background: rgba(16,185,129,0.1); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
+.badge-pendente  { background: rgba(245,158,11,0.1); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2); }
+.badge-vencido   { background: rgba(239,68,68,0.1);  color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+.badge-cancelado { background: rgba(107,114,128,0.1);color: #9ca3af; border: 1px solid rgba(107,114,128,0.2); }
+
+/* ─── SKELETON ─────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.skeleton {
+  background: linear-gradient(90deg, #131d30 25%, #1a2840 50%, #131d30 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ─── ANIMATIONS ───────────────────────────────────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeSlideUp 0.35s ease-out both;
+}
+
+/* ─── LAYOUT ───────────────────────────────────────── */
+@media (max-width: 767px) {
   .main-content {
     padding-bottom: var(--spacing-bottom-nav);
   }
-  .card {
-    border-radius: 12px;
-  }
-  .btn-primary {
-    padding: 12px 20px;
-    font-size: 15px;
-  }
+  /* iOS fix: prevent zoom on input focus */
   .input-field {
-    padding: 12px 14px;
-    font-size: 16px; /* prevents zoom on iOS */
+    font-size: 16px;
   }
-}
-
-@media (max-width: 380px) {
   .btn-primary {
-    padding: 11px 16px;
-    font-size: 14px;
+    font-size: 15px;
+    padding: 12px 20px;
   }
 }
 
-/* === LIGHT THEME === */
+/* ─── LIGHT THEME ──────────────────────────────────── */
 .light {
-  --color-dark-bg: #f7f8fa;
+  --color-dark-bg:      #f5f7fa;
   --color-dark-surface: #ffffff;
-  --color-dark-card: #ffffff;
-  --color-dark-border: #e4e7ec;
-  --color-dark-hover: #f0f2f5;
-  --color-dark-text: #111827;
-  --color-dark-muted: #6b7280;
+  --color-dark-card:    #ffffff;
+  --color-dark-border:  #e1e7f0;
+  --color-dark-hover:   #eef1f7;
+  --color-dark-text:    #0f172a;
+  --color-dark-muted:   #64748b;
 }
