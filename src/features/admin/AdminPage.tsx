@@ -2,17 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Plus, Search, Shield, Trash2, ToggleLeft, ToggleRight,
-  TrendingUp, LogOut, Check, X, Mail, User, Phone, Crown,
+  LogOut, Check, X, Mail, User, Phone, Crown, Edit2, KeyRound,
+  FileText, Loader2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth-store';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
+// ─── Types ───────────────────────────────────────────
 interface UsuarioAutorizado {
   id: string;
   email: string;
   nome: string | null;
+  cpf: string | null;
   telefone: string | null;
   status: 'ativo' | 'inativo' | 'bloqueado';
   plano: 'basico' | 'premium' | 'enterprise';
@@ -21,7 +24,11 @@ interface UsuarioAutorizado {
   created_at: string;
 }
 
+type ModalMode = 'create' | 'edit' | null;
+
 const ADMIN_EMAIL = 'onaeror@gmail.com';
+
+const EMPTY_FORM = { email: '', nome: '', cpf: '', telefone: '', plano: 'basico', observacoes: '' };
 
 const planoColors: Record<string, string> = {
   basico: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
@@ -35,16 +42,63 @@ const statusColors: Record<string, string> = {
   bloqueado: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
+// ─── CPF Formatting ──────────────────────────────────
+function formatCpf(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+function cpfDigitsOnly(cpf: string): string {
+  return cpf.replace(/\D/g, '');
+}
+
+function isValidCpf(cpf: string): boolean {
+  const d = cpfDigitsOnly(cpf);
+  if (d.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(d)) return false; // all same digits
+  // Validate check digits
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(d[i]) * (10 - i);
+  let check = 11 - (sum % 11);
+  if (check >= 10) check = 0;
+  if (parseInt(d[9]) !== check) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(d[i]) * (11 - i);
+  check = 11 - (sum % 11);
+  if (check >= 10) check = 0;
+  return parseInt(d[10]) === check;
+}
+
+// ─── Edge Function caller ────────────────────────────
+async function callAdminFunction(action: string, payload: Record<string, string>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Sessão expirada');
+
+  const res = await supabase.functions.invoke('admin-create-user', {
+    body: { action, ...payload },
+  });
+
+  if (res.error) throw new Error(res.error.message || 'Erro na função');
+  if (res.data?.error) throw new Error(res.data.error);
+  return res.data;
+}
+
+// ─── Component ───────────────────────────────────────
 export default function AdminPage() {
   const { user, signOut } = useAuthStore();
   const navigate = useNavigate();
   const [usuarios, setUsuarios] = useState<UsuarioAutorizado[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ email: '', nome: '', telefone: '', plano: 'basico', observacoes: '' });
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -54,63 +108,168 @@ export default function AdminPage() {
       .from('usuarios_autorizados')
       .select('*')
       .order('created_at', { ascending: false });
-
     if (!error && data) setUsuarios(data);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!isAdmin) {
-      navigate('/dashboard');
-      return;
-    }
+    if (!isAdmin) { navigate('/dashboard'); return; }
     fetchUsuarios();
   }, [isAdmin, navigate, fetchUsuarios]);
 
-  const handleAdd = async () => {
+  // ─── Open modals ─────────────────────────────────
+  const openCreate = () => {
+    setForm(EMPTY_FORM);
+    setEditingId(null);
+    setModalMode('create');
     setError('');
-    setSuccess('');
-    if (!form.email) { setError('Email é obrigatório'); return; }
+  };
 
-    const exists = usuarios.find(u => u.email.toLowerCase() === form.email.toLowerCase());
+  const openEdit = (u: UsuarioAutorizado) => {
+    setForm({
+      email: u.email,
+      nome: u.nome || '',
+      cpf: u.cpf ? formatCpf(u.cpf) : '',
+      telefone: u.telefone || '',
+      plano: u.plano,
+      observacoes: u.observacoes || '',
+    });
+    setEditingId(u.id);
+    setModalMode('edit');
+    setError('');
+  };
+
+  const closeModal = () => {
+    setModalMode(null);
+    setEditingId(null);
+    setError('');
+  };
+
+  // ─── Create user ─────────────────────────────────
+  const handleCreate = async () => {
+    setError('');
+    if (!form.email) { setError('Email é obrigatório'); return; }
+    if (!form.cpf || !isValidCpf(form.cpf)) { setError('CPF inválido (11 dígitos)'); return; }
+
+    const cpf = cpfDigitsOnly(form.cpf);
+    const emailLower = form.email.toLowerCase().trim();
+
+    const exists = usuarios.find(u => u.email.toLowerCase() === emailLower);
     if (exists) { setError('Este email já está autorizado'); return; }
 
-    const { error: err } = await supabase.from('usuarios_autorizados').insert({
-      email: form.email.toLowerCase().trim(),
-      nome: form.nome || null,
-      telefone: form.telefone || null,
-      plano: form.plano,
-      observacoes: form.observacoes || null,
-      autorizado_por: user?.id,
-    });
+    const cpfExists = usuarios.find(u => u.cpf === cpf);
+    if (cpfExists) { setError('Este CPF já está cadastrado'); return; }
 
-    if (err) { setError(err.message); return; }
+    setSubmitting(true);
+    try {
+      // 1. Insert in usuarios_autorizados
+      const { error: dbErr } = await supabase.from('usuarios_autorizados').insert({
+        email: emailLower,
+        nome: form.nome || null,
+        cpf,
+        telefone: form.telefone || null,
+        plano: form.plano,
+        observacoes: form.observacoes || null,
+        autorizado_por: user?.id,
+      });
+      if (dbErr) { setError(dbErr.message); return; }
 
-    setSuccess(`Usuário ${form.email} autorizado com sucesso!`);
-    setForm({ email: '', nome: '', telefone: '', plano: 'basico', observacoes: '' });
-    setShowForm(false);
+      // 2. Create auth user with password = first 6 CPF digits
+      const result = await callAdminFunction('create', {
+        email: emailLower,
+        cpf,
+        nome: form.nome || '',
+      });
+
+      setSuccess(`✅ ${form.nome || emailLower} autorizado! Senha padrão: ${result.password_hint}`);
+      closeModal();
+      fetchUsuarios();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ─── Edit user ────────────────────────────────────
+  const handleEdit = async () => {
+    if (!editingId) return;
+    setError('');
+    if (!form.cpf || !isValidCpf(form.cpf)) { setError('CPF inválido (11 dígitos)'); return; }
+
+    const cpf = cpfDigitsOnly(form.cpf);
+
+    const cpfConflict = usuarios.find(u => u.cpf === cpf && u.id !== editingId);
+    if (cpfConflict) { setError('Este CPF já está cadastrado para outro usuário'); return; }
+
+    setSubmitting(true);
+    try {
+      const { error: dbErr } = await supabase.from('usuarios_autorizados').update({
+        nome: form.nome || null,
+        cpf,
+        telefone: form.telefone || null,
+        plano: form.plano,
+        observacoes: form.observacoes || null,
+      }).eq('id', editingId);
+
+      if (dbErr) { setError(dbErr.message); return; }
+
+      setSuccess(`✅ Dados de ${form.nome || form.email} atualizados!`);
+      closeModal();
+      fetchUsuarios();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ─── Reset password ───────────────────────────────
+  const handleResetPassword = async (u: UsuarioAutorizado) => {
+    if (!u.cpf) { setError(`${u.email} não tem CPF cadastrado. Edite para adicionar.`); return; }
+
+    setSubmitting(true);
+    try {
+      const result = await callAdminFunction('reset_password', {
+        email: u.email,
+        cpf: u.cpf,
+      });
+      setSuccess(`🔑 Senha de ${u.nome || u.email} resetada para: ${result.password_hint}`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ─── Toggle status ────────────────────────────────
+  const handleToggleStatus = async (u: UsuarioAutorizado) => {
+    const newStatus = u.status === 'ativo' ? 'inativo' : 'ativo';
+    await supabase.from('usuarios_autorizados').update({ status: newStatus }).eq('id', u.id);
     fetchUsuarios();
   };
 
-  const handleToggleStatus = async (usuario: UsuarioAutorizado) => {
-    const newStatus = usuario.status === 'ativo' ? 'inativo' : 'ativo';
-    await supabase.from('usuarios_autorizados').update({ status: newStatus }).eq('id', usuario.id);
+  // ─── Delete user ──────────────────────────────────
+  const handleDelete = async (u: UsuarioAutorizado) => {
+    if (!confirm(`Remover ${u.nome || u.email}? Isso excluirá o acesso ao sistema.`)) return;
+
+    try {
+      // Delete from auth
+      await callAdminFunction('delete_user', { email: u.email, cpf: u.cpf || '' });
+    } catch {
+      // auth user may not exist yet, continue
+    }
+
+    await supabase.from('usuarios_autorizados').delete().eq('id', u.id);
+    setSuccess(`${u.nome || u.email} removido.`);
     fetchUsuarios();
   };
 
-  const handleDelete = async (id: string) => {
-    await supabase.from('usuarios_autorizados').delete().eq('id', id);
-    fetchUsuarios();
-  };
-
-  const handleChangePlano = async (id: string, plano: string) => {
-    await supabase.from('usuarios_autorizados').update({ plano }).eq('id', id);
-    fetchUsuarios();
-  };
-
+  // ─── Filters ──────────────────────────────────────
   const filtered = usuarios.filter(u =>
     u.email.toLowerCase().includes(search.toLowerCase()) ||
-    (u.nome && u.nome.toLowerCase().includes(search.toLowerCase()))
+    (u.nome && u.nome.toLowerCase().includes(search.toLowerCase())) ||
+    (u.cpf && u.cpf.includes(search.replace(/\D/g, '')))
   );
 
   const stats = {
@@ -126,17 +285,17 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen gradient-dark gradient-mesh">
       {/* Navbar */}
-      <nav className="glass border-b border-[var(--color-dark-border)] h-16 flex items-center px-4 md:px-6 justify-between">
+      <nav className="glass border-b border-[var(--color-dark-border)] h-14 flex items-center px-4 md:px-6 justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-white">Control Master <span className="text-purple-400">GP</span></h1>
-            <p className="text-[10px] text-slate-500">Painel Administrativo</p>
+            <h1 className="text-sm font-bold text-white">Control Master <span className="text-purple-400">GP</span></h1>
+            <p style={{ fontSize: '0.625rem' }} className="text-slate-500">Painel Administrativo</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button onClick={() => navigate('/dashboard')} className="text-xs text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-dark-hover)]">
             Ir para o App
           </button>
@@ -146,22 +305,22 @@ export default function AdminPage() {
         </div>
       </nav>
 
-      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-5">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total Usuários', value: stats.total, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+            { label: 'Total', value: stats.total, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Ativos', value: stats.ativos, icon: Check, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Inativos', value: stats.inativos, icon: X, color: 'text-amber-400', bg: 'bg-amber-500/10' },
           ].map(s => (
-            <div key={s.label} className="card p-4">
+            <div key={s.label} className="card p-3 md:p-4">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center`}>
-                  <s.icon className={`w-5 h-5 ${s.color}`} />
+                <div className={`w-9 h-9 rounded-xl ${s.bg} flex items-center justify-center`}>
+                  <s.icon className={`w-4 h-4 ${s.color}`} />
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">{s.label}</p>
-                  <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                  <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
                 </div>
               </div>
             </div>
@@ -171,23 +330,29 @@ export default function AdminPage() {
         {/* Alerts */}
         <AnimatePresence>
           {success && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center justify-between">
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center justify-between">
               {success}
               <button onClick={() => setSuccess('')}><X className="w-4 h-4" /></button>
+            </motion.div>
+          )}
+          {error && !modalMode && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center justify-between">
+              {error}
+              <button onClick={() => setError('')}><X className="w-4 h-4" /></button>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Header + Search */}
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-lg font-bold text-white">Usuários Autorizados</h2>
+          <h2 className="text-base font-bold text-white">Usuários Autorizados</h2>
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-10 py-2 text-sm w-48" />
+              <input type="text" placeholder="Buscar nome, email ou CPF..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-10 py-2 text-sm w-52 md:w-64" />
             </div>
-            <button onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2 text-sm">
-              <Plus className="w-4 h-4" /> Autorizar
+            <button onClick={openCreate} className="btn-primary flex items-center gap-2 text-sm">
+              <Plus className="w-4 h-4" /> Novo
             </button>
           </div>
         </div>
@@ -202,27 +367,44 @@ export default function AdminPage() {
               <p className="text-slate-400">Nenhum usuário encontrado</p>
             </div>
           ) : filtered.map((u, i) => (
-            <motion.div key={u.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="card p-4 flex items-center gap-4 group">
+            <motion.div key={u.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+              className="card p-4 flex items-center gap-3 md:gap-4 group"
+            >
+              {/* Avatar */}
               <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', u.email === ADMIN_EMAIL ? 'bg-purple-500/10' : 'bg-blue-500/10')}>
                 {u.email === ADMIN_EMAIL ? <Crown className="w-5 h-5 text-purple-400" /> : <User className="w-5 h-5 text-blue-400" />}
               </div>
+
+              {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{u.nome || u.email}</p>
-                <p className="text-xs text-slate-500">{u.email}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                  {u.cpf && <p className="text-xs text-slate-600">· CPF: {formatCpf(u.cpf)}</p>}
+                </div>
               </div>
-              <div className={cn('px-2 py-1 rounded-lg text-xs font-medium border', planoColors[u.plano])}>{u.plano}</div>
-              <div className={cn('px-2 py-1 rounded-lg text-xs font-medium border', statusColors[u.status])}>{u.status}</div>
+
+              {/* Badges — desktop */}
+              <div className="hidden md:flex items-center gap-2">
+                <div className={cn('px-2 py-1 rounded-lg text-xs font-medium border', planoColors[u.plano])}>{u.plano}</div>
+                <div className={cn('px-2 py-1 rounded-lg text-xs font-medium border', statusColors[u.status])}>{u.status}</div>
+              </div>
+
+              {/* Actions */}
               {u.email !== ADMIN_EMAIL && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <select value={u.plano} onChange={e => handleChangePlano(u.id, e.target.value)} className="input-field py-1 px-2 text-xs w-auto">
-                    <option value="basico">Básico</option>
-                    <option value="premium">Premium</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
+                <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <button onClick={() => openEdit(u)} className="p-1.5 rounded-lg hover:bg-[var(--color-dark-hover)] transition-all" title="Editar">
+                    <Edit2 className="w-4 h-4 text-slate-400" />
+                  </button>
+                  <button onClick={() => handleResetPassword(u)} className="p-1.5 rounded-lg hover:bg-amber-500/10 transition-all" title="Resetar Senha (CPF)">
+                    <KeyRound className="w-4 h-4 text-amber-400" />
+                  </button>
                   <button onClick={() => handleToggleStatus(u)} className="p-1.5 rounded-lg hover:bg-[var(--color-dark-hover)] transition-all" title={u.status === 'ativo' ? 'Desativar' : 'Ativar'}>
                     {u.status === 'ativo' ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5 text-slate-500" />}
                   </button>
-                  <button onClick={() => handleDelete(u.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(u)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all" title="Excluir">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </motion.div>
@@ -230,24 +412,67 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Add User Modal */}
+      {/* ─── CREATE / EDIT Modal ──────────────────── */}
       <AnimatePresence>
-        {showForm && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
-            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="card w-full max-w-md rounded-t-3xl md:rounded-2xl p-6 space-y-4">
-              <h2 className="text-lg font-bold text-white">Autorizar Novo Usuário</h2>
-              <p className="text-sm text-slate-400">Adicione o email do cliente que comprou o sistema.</p>
+        {modalMode && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center"
+            onClick={e => e.target === e.currentTarget && closeModal()}
+          >
+            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
+              className="card w-full max-w-md rounded-t-3xl md:rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <h2 className="text-lg font-bold text-white">
+                {modalMode === 'create' ? 'Autorizar Novo Usuário' : 'Editar Usuário'}
+              </h2>
+              <p className="text-sm text-slate-400">
+                {modalMode === 'create'
+                  ? 'CPF obrigatório. A senha será os 6 primeiros dígitos do CPF.'
+                  : 'Atualize os dados do usuário.'}
+              </p>
 
-              {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
+              {error && modalMode && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>
+              )}
 
+              {/* Email (disabled on edit) */}
               <div>
                 <label className="block text-sm text-slate-300 mb-1.5">Email *</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input value={form.email} onChange={e => set('email', e.target.value)} placeholder="cliente@email.com" className="input-field pl-10" />
+                  <input
+                    value={form.email}
+                    onChange={e => set('email', e.target.value)}
+                    placeholder="cliente@email.com"
+                    className="input-field pl-10"
+                    disabled={modalMode === 'edit'}
+                    style={modalMode === 'edit' ? { opacity: 0.5 } : undefined}
+                  />
                 </div>
               </div>
 
+              {/* CPF */}
+              <div>
+                <label className="block text-sm text-slate-300 mb-1.5">CPF * <span className="text-slate-600 text-xs">(senha = 6 primeiros dígitos)</span></label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    value={form.cpf}
+                    onChange={e => set('cpf', formatCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className="input-field pl-10"
+                    maxLength={14}
+                    inputMode="numeric"
+                  />
+                </div>
+                {form.cpf && cpfDigitsOnly(form.cpf).length === 11 && (
+                  <p className={`text-xs mt-1 ${isValidCpf(form.cpf) ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {isValidCpf(form.cpf) ? `✓ CPF válido — Senha: ${cpfDigitsOnly(form.cpf).substring(0, 6)}` : '✗ CPF inválido'}
+                  </p>
+                )}
+              </div>
+
+              {/* Nome */}
               <div>
                 <label className="block text-sm text-slate-300 mb-1.5">Nome</label>
                 <div className="relative">
@@ -256,6 +481,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Telefone */}
               <div>
                 <label className="block text-sm text-slate-300 mb-1.5">Telefone</label>
                 <div className="relative">
@@ -264,6 +490,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Plano */}
               <div>
                 <label className="block text-sm text-slate-300 mb-1.5">Plano</label>
                 <select value={form.plano} onChange={e => set('plano', e.target.value)} className="input-field">
@@ -273,14 +500,27 @@ export default function AdminPage() {
                 </select>
               </div>
 
+              {/* Observações */}
               <div>
                 <label className="block text-sm text-slate-300 mb-1.5">Observações</label>
                 <textarea value={form.observacoes} onChange={e => set('observacoes', e.target.value)} rows={2} placeholder="Notas internas..." className="input-field resize-none" />
               </div>
 
+              {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <button onClick={() => { setShowForm(false); setError(''); }} className="flex-1 py-3 rounded-xl text-sm text-slate-400 border border-[var(--color-dark-border)] hover:bg-[var(--color-dark-hover)]">Cancelar</button>
-                <button onClick={handleAdd} className="btn-primary flex-1 py-3">Autorizar</button>
+                <button onClick={closeModal} disabled={submitting} className="flex-1 py-3 rounded-xl text-sm text-slate-400 border border-[var(--color-dark-border)] hover:bg-[var(--color-dark-hover)] transition-all">
+                  Cancelar
+                </button>
+                <button
+                  onClick={modalMode === 'create' ? handleCreate : handleEdit}
+                  disabled={submitting}
+                  className="btn-primary flex-1 py-3 flex items-center justify-center gap-2"
+                >
+                  {submitting
+                    ? <><Loader2 className="w-4 h-4" style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</>
+                    : modalMode === 'create' ? 'Autorizar' : 'Salvar'
+                  }
+                </button>
               </div>
             </motion.div>
           </motion.div>
