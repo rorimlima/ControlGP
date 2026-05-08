@@ -62,6 +62,8 @@ export default function LoginPage() {
           ? 'Email ou senha incorretos'
           : 'Erro ao entrar. Tente novamente.'
       );
+    } else {
+      navigate('/dashboard', { replace: true });
     }
   };
 

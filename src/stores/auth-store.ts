@@ -52,6 +52,8 @@ export const useAuthStore = create<AuthState>()(
             if (authorized) {
               await get().fetchProfile();
             }
+          } else {
+            set({ user: null, session: null, isAuthenticated: false, isAuthorized: null });
           }
           
           // Listen for auth changes
@@ -99,21 +101,32 @@ export const useAuthStore = create<AuthState>()(
       signIn: async (email, password) => {
         set({ isLoading: true });
         try {
-          // Check authorization before login
-          const { data: authData } = await supabase
+          // Sign out first to ensure clean anon state for authorization check
+          await supabase.auth.signOut();
+
+          // Check authorization as anon (no session = anon role)
+          const { data: authData, error: checkErr } = await supabase
             .from('usuarios_autorizados')
             .select('status')
             .eq('email', email.toLowerCase().trim())
             .single();
 
-          if (!authData || authData.status !== 'ativo') {
+          if (checkErr || !authData || authData.status !== 'ativo') {
             set({ isAuthorized: false });
             return { error: 'ACCESS_DENIED' };
           }
 
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) return { error: error.message };
-          set({ isAuthorized: true });
+          
+          set({ 
+            user: data.user,
+            session: data.session,
+            isAuthenticated: true, 
+            isAuthorized: true 
+          });
+          get().fetchProfile();
+          
           return { error: null };
         } finally {
           set({ isLoading: false });
