@@ -8,8 +8,11 @@ import AppLayout from '@/components/layout/AppLayout';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 
 // Lazy loaded pages
+const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'));
+const AccessDeniedPage = lazy(() => import('@/features/auth/AccessDeniedPage'));
+const AdminPage = lazy(() => import('@/features/admin/AdminPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
 const LancamentosPage = lazy(() => import('@/features/lancamentos/LancamentosPage'));
 const ContasPage = lazy(() => import('@/features/contas/ContasPage'));
@@ -19,10 +22,11 @@ const MetasPage = lazy(() => import('@/features/metas/MetasPage'));
 const ConfiguracoesPage = lazy(() => import('@/features/configuracoes/ConfiguracoesPage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isAuthorized, isLoading } = useAuthStore();
   
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (isAuthorized === false) return <Navigate to="/acesso-negado" replace />;
   
   return <>{children}</>;
 }
@@ -63,11 +67,27 @@ export default function App() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
+        {/* Landing Page — public */}
+        <Route path="/" element={<LandingPage />} />
+
         {/* Auth Routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registro" element={<RegisterPage />} />
         </Route>
+
+        {/* Access Denied */}
+        <Route path="/acesso-negado" element={<AccessDeniedPage />} />
+
+        {/* Admin Panel — Control Master GP */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* App Routes */}
         <Route
@@ -86,9 +106,8 @@ export default function App() {
           <Route path="/configuracoes" element={<ConfiguracoesPage />} />
         </Route>
 
-        {/* Redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
   );

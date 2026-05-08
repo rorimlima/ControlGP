@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +16,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const { signIn, isLoading } = useAuthStore();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +28,10 @@ export default function LoginPage() {
     setError(null);
     const result = await signIn(data.email, data.password);
     if (result.error) {
+      if (result.error === 'ACCESS_DENIED') {
+        navigate('/acesso-negado');
+        return;
+      }
       setError(result.error);
     }
   };

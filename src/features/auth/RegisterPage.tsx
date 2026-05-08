@@ -39,6 +39,10 @@ export default function RegisterPage() {
       password: data.password,
     });
     if (result.error) {
+      if (result.error === 'ACCESS_DENIED') {
+        navigate('/acesso-negado');
+        return;
+      }
       setError(result.error);
     } else {
       navigate('/dashboard');

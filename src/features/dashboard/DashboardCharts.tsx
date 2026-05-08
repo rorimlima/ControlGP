@@ -172,7 +172,7 @@ export default function DashboardCharts({ lancamentos }: Props) {
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                <Tooltip formatter={(v: any) => formatCurrency(Number(v))} />
                 <Legend
                   iconType="circle"
                   iconSize={8}

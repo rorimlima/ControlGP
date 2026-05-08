@@ -61,7 +61,7 @@ export default function ConfiguracoesPage() {
               {section.items.map((item) => (
                 <div key={item.label}
                   className="px-5 py-3.5 flex items-center justify-between hover:bg-[var(--color-dark-hover)] transition-colors cursor-pointer"
-                  onClick={item.action}>
+                  onClick={'action' in item ? (item as any).action : undefined}>
                   <span className="text-sm text-slate-300">{item.label}</span>
                   <span className="text-sm text-slate-500">{item.desc}</span>
                 </div>

@@ -11,8 +11,10 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  Shield,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -27,7 +29,13 @@ const navItems = [
 
 export default function Sidebar() {
   const { sidebarCollapsed, toggleSidebarCollapse } = useAppStore();
+  const { user } = useAuthStore();
   const location = useLocation();
+  const isAdmin = user?.email === 'onaeror@gmail.com';
+
+  const allNavItems = isAdmin
+    ? [...navItems, { path: '/admin', label: 'Admin Master', icon: Shield }]
+    : navItems;
 
   return (
     <aside
@@ -62,7 +70,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1">
-        {navItems.map((item) => {
+        {allNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
 
