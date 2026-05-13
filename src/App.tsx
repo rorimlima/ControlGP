@@ -2,7 +2,8 @@ import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
-import { startAutoSync } from '@/lib/sync-engine';
+import { startAutoSync, fullSync } from '@/lib/sync-engine';
+import { clearAllLocalData } from '@/lib/database';
 import AuthLayout from '@/features/auth/AuthLayout';
 import AppLayout from '@/components/layout/AppLayout';
 import LoadingScreen from '@/components/ui/LoadingScreen';
@@ -42,7 +43,7 @@ function ProtectedRoute({ children, requireMaster = false }: { children: React.R
 }
 
 export default function App() {
-  const { initialize, isAuthenticated } = useAuthStore();
+  const { initialize, isAuthenticated, user } = useAuthStore();
   const { setIsOnline, setIsMobile } = useAppStore();
 
   useEffect(() => {
@@ -50,10 +51,22 @@ export default function App() {
   }, [initialize]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      startAutoSync(30000);
+    if (isAuthenticated && user) {
+      // Check if user changed — clear stale data from previous user
+      const lastUserId = localStorage.getItem('cgp_last_user_id');
+      if (lastUserId && lastUserId !== user.id) {
+        // Different user logged in — wipe all local data first
+        clearAllLocalData().then(() => {
+          localStorage.setItem('cgp_last_user_id', user.id);
+          fullSync().catch(console.error);
+          startAutoSync(30000);
+        });
+      } else {
+        localStorage.setItem('cgp_last_user_id', user.id);
+        startAutoSync(30000);
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   // Network status
   useEffect(() => {

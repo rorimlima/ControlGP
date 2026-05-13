@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
+import { clearAllLocalData } from '@/lib/database';
+import { stopAutoSync } from '@/lib/sync-engine';
 import type { User, Session } from '@supabase/supabase-js';
 
 export interface Profile {
@@ -162,6 +164,13 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signOut: async () => {
+        // Stop background sync first
+        stopAutoSync();
+        // Clear ALL local cached data to prevent cross-user data leakage
+        try { await clearAllLocalData(); } catch (e) { console.error('[SignOut] Failed to clear local data:', e); }
+        // Clear user tracking
+        localStorage.removeItem('cgp_last_user_id');
+        // Sign out from Supabase
         await supabase.auth.signOut();
         set({ user: null, session: null, profile: null, isAuthenticated: false });
       },

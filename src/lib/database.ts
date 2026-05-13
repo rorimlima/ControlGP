@@ -203,3 +203,17 @@ class ControlGPDatabase extends Dexie {
 }
 
 export const db = new ControlGPDatabase();
+
+// Clear all local data (used on sign-out to prevent cross-user data leakage)
+export async function clearAllLocalData(): Promise<void> {
+  await Promise.all([
+    db.lancamentos.clear(),
+    db.contas.clear(),
+    db.categorias.clear(),
+    db.cartoes.clear(),
+    db.metas.clear(),
+    db.pessoas.clear(),
+    db.sync_queue.clear(),
+    db.sync_meta.clear(),
+  ]);
+}
