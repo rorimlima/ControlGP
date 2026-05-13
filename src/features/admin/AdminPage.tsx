@@ -159,37 +159,67 @@ export default function AdminPage() {
     if (!form.email) { setError('Email é obrigatório'); return; }
     if (!form.cpf || !isValidCpf(form.cpf)) { setError('CPF inválido (11 dígitos)'); return; }
 
-    const cpf = cpfDigitsOnly(form.cpf);
+    const cpf       = cpfDigitsOnly(form.cpf);
     const emailLower = form.email.toLowerCase().trim();
 
-    const exists = usuarios.find(u => u.email.toLowerCase() === emailLower);
-    if (exists) { setError('Este email já está autorizado'); return; }
-
-    const cpfExists = usuarios.find(u => u.cpf === cpf);
-    if (cpfExists) { setError('Este CPF já está cadastrado'); return; }
-
+    // ── Verificação fresh direto do banco (evita stale state) ──
     setSubmitting(true);
     try {
-      // 1. Insert in usuarios_autorizados
-      const { error: dbErr } = await supabase.from('usuarios_autorizados').insert({
-        email: emailLower,
-        nome: form.nome || null,
-        cpf,
-        telefone: form.telefone || null,
-        plano: form.plano,
-        observacoes: form.observacoes || null,
-        autorizado_por: user?.id,
-      });
-      if (dbErr) { setError(dbErr.message); return; }
+      const { data: freshData } = await supabase
+        .from('usuarios_autorizados')
+        .select('id, email, cpf')
+        .or(`email.eq.${emailLower},cpf.eq.${cpf}`);
 
-      // 2. Create auth user + profile via edge function
-      const result = await callAdminFunction('create', {
-        email: emailLower,
-        cpf,
-        nome: form.nome || '',
-        payment_type: form.payment_type || 'mensal',
-        expires_at: form.payment_type === 'brinde' ? '' : (form.expires_at || ''),
-      });
+      if (freshData && freshData.length > 0) {
+        const emailDup = freshData.find(u => u.email.toLowerCase() === emailLower);
+        const cpfDup   = freshData.find(u => u.cpf === cpf);
+        if (emailDup) { setError('Este email já está cadastrado no sistema'); return; }
+        if (cpfDup)   { setError('Este CPF já está cadastrado no sistema'); return; }
+      }
+
+      // 1. Insert em usuarios_autorizados
+      const { data: inserted, error: dbErr } = await supabase
+        .from('usuarios_autorizados')
+        .insert({
+          email: emailLower,
+          nome: form.nome || null,
+          cpf,
+          telefone: form.telefone || null,
+          plano: form.plano,
+          observacoes: form.observacoes || null,
+          autorizado_por: user?.id,
+        })
+        .select('id')
+        .single();
+
+      if (dbErr) {
+        // Código 23505 = unique_violation (constraint duplicata)
+        if (dbErr.code === '23505') {
+          setError('Este email ou CPF já está cadastrado. Recarregue a lista e tente novamente.');
+        } else {
+          setError(dbErr.message);
+        }
+        return;
+      }
+
+      // 2. Criar auth user + profile via edge function
+      let result: any;
+      try {
+        result = await callAdminFunction('create', {
+          email: emailLower,
+          cpf,
+          nome: form.nome || '',
+          payment_type: form.payment_type || 'mensal',
+          expires_at: form.payment_type === 'brinde' ? '' : (form.expires_at || ''),
+        });
+      } catch (edgeErr: any) {
+        // ── ROLLBACK: remove o registro inserido se a edge function falhou ──
+        if (inserted?.id) {
+          await supabase.from('usuarios_autorizados').delete().eq('id', inserted.id);
+        }
+        setError(`Erro ao criar autenticação: ${edgeErr.message}. Tente novamente.`);
+        return;
+      }
 
       setSuccess(`✅ ${form.nome || emailLower} autorizado! Senha padrão: ${result.password_hint}`);
       closeModal();
