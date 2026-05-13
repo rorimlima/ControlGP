@@ -2,10 +2,12 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Plus, CreditCard, Edit3, Trash2, Printer, Download, Loader2, Check, X, ChevronRight, FileText } from 'lucide-react';
-import { db, type LocalCartao, type LocalLancamento } from '@/lib/database';
+import { db, type LocalCartao } from '@/lib/database';
 import { useAuthStore } from '@/stores/auth-store';
 import { crudInsert, crudUpdate, crudDelete, exportToCSV, printTable } from '@/lib/crud-engine';
 import { formatCurrency, cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const CSV_COLUMNS = [
   { key: 'nome', label: 'Nome' },
@@ -98,30 +100,71 @@ export default function CartoesPage() {
             <p className="text-slate-400">Adicione seu primeiro cartão</p>
           </div>
         ) : cartoes.map((c, i) => (
-          <motion.div key={c.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="relative overflow-hidden rounded-2xl p-6 group flex flex-col" style={{ background: `linear-gradient(135deg, ${c.cor}cc 0%, ${c.cor}88 100%)` }}>
-            <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2" />
-            <div className="flex items-center justify-between mb-6">
-              <CreditCard className="w-8 h-8 text-white/80" />
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                <button onClick={() => { setEditData(c); setShowForm(true); }} className="p-1.5 rounded-lg text-white/70 hover:bg-white/10"><Edit3 className="w-4 h-4" /></button>
-                <button onClick={() => setDeleteConfirm(c.id)} className="p-1.5 rounded-lg text-white/70 hover:bg-white/10"><Trash2 className="w-4 h-4" /></button>
+          <motion.div key={c.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="relative rounded-2xl p-5 flex flex-col" style={{ background: `linear-gradient(135deg, ${c.cor}dd 0%, ${c.cor}99 100%)` }}>
+            {/* Decorative circle — pointer-events:none so it doesn't block clicks */}
+            <div className="absolute top-0 right-0 w-28 h-28 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+            {/* Card header: icon + always-visible action buttons */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
+                  <CreditCard className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-base font-bold text-white leading-tight">{c.nome}</p>
+                  <p className="text-xs text-white/60">{c.banco || c.bandeira.toUpperCase()}</p>
+                </div>
+              </div>
+              {/* Actions — always visible, above decorative elements */}
+              <div className="flex items-center gap-1 z-10">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditData(c); setShowForm(true); }}
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/25 transition-all"
+                  title="Editar cartão"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-white" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteConfirm(c.id); }}
+                  className="p-2 rounded-lg bg-white/10 hover:bg-red-500/40 transition-all"
+                  title="Excluir cartão"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-white" />
+                </button>
               </div>
             </div>
-            <p className="text-lg font-bold text-white mb-1">{c.nome}</p>
-            <p className="text-sm text-white/60 mb-4">{c.banco || c.bandeira.toUpperCase()}</p>
-            <div className="flex justify-between text-sm">
-              <div><p className="text-white/50 text-xs">Limite</p><p className="text-white font-semibold">{formatCurrency(c.limite)}</p></div>
-              <div className="text-right"><p className="text-white/50 text-xs">Disponível</p><p className="text-white font-semibold">{formatCurrency(getDisponivel(c.id, c.limite))}</p></div>
+
+            {/* Limit info */}
+            <div className="flex justify-between text-sm mb-2">
+              <div><p className="text-white/50 text-[11px] uppercase tracking-wide">Limite</p><p className="text-white font-bold">{formatCurrency(c.limite)}</p></div>
+              <div className="text-right"><p className="text-white/50 text-[11px] uppercase tracking-wide">Disponível</p><p className="text-white font-bold">{formatCurrency(getDisponivel(c.id, c.limite))}</p></div>
             </div>
-            <div className="mt-3 flex gap-4 text-xs text-white/50 mb-4">
+
+            {/* Progress bar */}
+            {c.limite > 0 && (() => {
+              const usado = c.limite - getDisponivel(c.id, c.limite);
+              const pct = Math.min(100, Math.round((usado / c.limite) * 100));
+              return (
+                <div className="mb-3">
+                  <div className="h-1.5 rounded-full bg-white/20 overflow-hidden">
+                    <div className="h-full rounded-full bg-white/70 transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-white/40 mt-1">{pct}% utilizado</p>
+                </div>
+              );
+            })()}
+
+            <div className="flex gap-3 text-[11px] text-white/50 mb-3">
               <span>Fecha dia {c.dia_fechamento}</span>
+              <span>·</span>
               <span>Vence dia {c.dia_vencimento}</span>
             </div>
-            
-            <div className="mt-auto pt-4 border-t border-white/10 flex justify-between items-center relative z-10">
-              <span className="text-[11px] text-white/60 font-medium tracking-wide uppercase">Faturas</span>
-              <button onClick={() => setViewDetails(c)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-xs font-semibold text-white">
-                Detalhes <ChevronRight className="w-3.5 h-3.5" />
+
+            {/* Footer */}
+            <div className="mt-auto pt-3 border-t border-white/10 flex justify-between items-center z-10">
+              <span className="text-[10px] text-white/50 font-semibold uppercase tracking-widest">Faturas</span>
+              <button onClick={() => setViewDetails(c)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 transition-all text-xs font-bold text-white">
+                Detalhes <ChevronRight className="w-3 h-3" />
               </button>
             </div>
           </motion.div>
@@ -239,85 +282,201 @@ function CartaoForm({ editData, onClose, userId, tenantId, onFeedback }: {
 
 function CartaoDetalhesModal({ cartao, onClose }: { cartao: LocalCartao; onClose: () => void }) {
   const rawLancamentos = useLiveQuery(
-    () => db.lancamentos
-      .where('cartao_id')
-      .equals(cartao.id)
-      .toArray(),
+    () => db.lancamentos.where('cartao_id').equals(cartao.id).toArray(),
     [cartao.id]
   ) || [];
 
   const faturas = useMemo(() => {
-    // Only pendente (not paid) and not deleted
     const valid = rawLancamentos.filter(l => !l.deleted_at && l.status === 'pendente');
-    
-    // Group by YYYY-MM
-    const groups: Record<string, number> = {};
+    const groups: Record<string, { total: number; itens: number }> = {};
     valid.forEach(l => {
-      // Assuming data_vencimento is YYYY-MM-DD
-      const monthYear = l.data_vencimento ? l.data_vencimento.substring(0, 7) : 'S/ Data';
-      groups[monthYear] = (groups[monthYear] || 0) + l.valor;
+      const key = l.data_vencimento ? l.data_vencimento.substring(0, 7) : 'S/ Data';
+      if (!groups[key]) groups[key] = { total: 0, itens: 0 };
+      groups[key].total += l.valor;
+      groups[key].itens += 1;
     });
-
     return Object.entries(groups)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([mes, valor]) => {
-        // Format to MM/YYYY
-        if (mes.length === 7) {
-          const [y, m] = mes.split('-');
-          return { label: `${m}/${y}`, valor };
-        }
-        return { label: mes, valor };
+      .map(([mes, { total, itens }]) => {
+        let label = mes;
+        if (mes.length === 7) { const [y, m] = mes.split('-'); label = `${m}/${y}`; }
+        return { label, total, itens };
       });
   }, [rawLancamentos]);
 
-  const total = faturas.reduce((acc, f) => acc + f.valor, 0);
+  const totalGeral = faturas.reduce((acc, f) => acc + f.total, 0);
+  const disponivel = cartao.limite - totalGeral;
+
+  const exportPDF = () => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const geradoEm = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    // Header
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 210, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CONTROL GP', 14, 18);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    doc.text('Extrato de Faturas do Cartão', 14, 26);
+    doc.text(`Gerado em: ${geradoEm}`, 14, 33);
+
+    // Card info block
+    doc.setFillColor(18, 25, 41);
+    doc.roundedRect(14, 48, 182, 28, 3, 3, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(cartao.nome, 20, 60);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    doc.text(`${cartao.banco || cartao.bandeira.toUpperCase()} · Fecha dia ${cartao.dia_fechamento} · Vence dia ${cartao.dia_vencimento}`, 20, 67);
+    doc.setTextColor(239, 68, 68);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Pendente: ${formatCurrency(totalGeral)}`, 20, 74);
+
+    // Summary row
+    const summaryY = 84;
+    const cols = [
+      { label: 'Limite Total', value: formatCurrency(cartao.limite), color: [100, 116, 139] as [number,number,number] },
+      { label: 'Total Faturas', value: formatCurrency(totalGeral), color: [239, 68, 68] as [number,number,number] },
+      { label: 'Disponível', value: formatCurrency(Math.max(0, disponivel)), color: [16, 185, 129] as [number,number,number] },
+    ];
+    const colW = 60;
+    cols.forEach((col, idx) => {
+      const x = 14 + idx * colW;
+      doc.setFillColor(26, 34, 54);
+      doc.roundedRect(x, summaryY, 56, 18, 2, 2, 'F');
+      doc.setTextColor(...col.color);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(col.value, x + 4, summaryY + 8);
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(col.label, x + 4, summaryY + 14);
+    });
+
+    // Table
+    if (faturas.length > 0) {
+      autoTable(doc, {
+        startY: summaryY + 26,
+        head: [['Vencimento', 'Lançamentos', 'Valor da Fatura']],
+        body: [
+          ...faturas.map(f => [f.label, `${f.itens} lançamento(s)`, formatCurrency(f.total)]),
+          ['', 'TOTAL GERAL', formatCurrency(totalGeral)],
+        ],
+        headStyles: { fillColor: [15, 23, 42], textColor: [148, 163, 184], fontSize: 9, fontStyle: 'bold' },
+        bodyStyles: { fillColor: [18, 25, 41], textColor: [226, 232, 244], fontSize: 9 },
+        alternateRowStyles: { fillColor: [22, 31, 52] },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 80 },
+          2: { cellWidth: 52, halign: 'right', textColor: [239, 68, 68], fontStyle: 'bold' },
+        },
+        didParseCell: (data) => {
+          if (data.row.index === faturas.length) {
+            data.cell.styles.fillColor = [15, 23, 42];
+            data.cell.styles.fontStyle = 'bold';
+            if (data.column.index === 2) data.cell.styles.textColor = [239, 68, 68];
+            else data.cell.styles.textColor = [226, 232, 244];
+          }
+        },
+        margin: { left: 14, right: 14 },
+      });
+    } else {
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(10);
+      doc.text('Nenhuma fatura pendente para este cartão.', 14, summaryY + 34);
+    }
+
+    // Footer
+    const pageH = doc.internal.pageSize.height;
+    doc.setTextColor(51, 65, 85);
+    doc.setFontSize(7);
+    doc.text('Control GP — Gestão Financeira Pessoal · control-gp.vercel.app', 14, pageH - 8);
+
+    doc.save(`fatura-${cartao.nome.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.pdf`);
+  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
-      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="card w-full max-w-sm rounded-2xl p-0 overflow-hidden flex flex-col max-h-[80vh]">
-        <div className="p-5 border-b border-[var(--color-dark-border)] flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${cartao.cor}1a 0%, transparent 100%)` }}>
+      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="card w-full max-w-md rounded-2xl p-0 overflow-hidden flex flex-col" style={{ maxHeight: '85vh' }}>
+        {/* Header */}
+        <div className="p-5 border-b border-[var(--color-dark-border)] flex items-center justify-between flex-shrink-0" style={{ background: `linear-gradient(135deg, ${cartao.cor}22 0%, transparent 100%)` }}>
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <CreditCard className="w-5 h-5" style={{ color: cartao.cor }} />
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <CreditCard className="w-4 h-4" style={{ color: cartao.cor }} />
               {cartao.nome}
             </h2>
-            <p className="text-xs text-slate-400 mt-1">Faturas pendentes (próximos meses)</p>
+            <p className="text-xs text-slate-400 mt-0.5">{cartao.banco || cartao.bandeira.toUpperCase()} · Fecha dia {cartao.dia_fechamento} · Vence dia {cartao.dia_vencimento}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-[var(--color-dark-hover)]"><X className="w-5 h-5" /></button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={exportPDF} title="Exportar PDF" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 text-red-400 text-xs font-semibold transition-all">
+              <Download className="w-3.5 h-3.5" /> PDF
+            </button>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-[var(--color-dark-hover)] transition-all">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="p-5 overflow-y-auto">
+        {/* Summary cards */}
+        <div className="grid grid-cols-3 gap-2 p-4 flex-shrink-0 border-b border-[var(--color-dark-border)]">
+          <div className="text-center p-2.5 rounded-xl bg-[var(--color-dark-hover)]">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Limite</p>
+            <p className="text-sm font-bold text-slate-300">{formatCurrency(cartao.limite)}</p>
+          </div>
+          <div className="text-center p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Pendente</p>
+            <p className="text-sm font-bold text-red-400">{formatCurrency(totalGeral)}</p>
+          </div>
+          <div className="text-center p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">Disponível</p>
+            <p className="text-sm font-bold text-emerald-400">{formatCurrency(Math.max(0, disponivel))}</p>
+          </div>
+        </div>
+
+        {/* Faturas list */}
+        <div className="p-4 overflow-y-auto flex-1">
           {faturas.length === 0 ? (
-            <div className="text-center py-8">
-              <Check className="w-10 h-10 text-emerald-500/50 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">Nenhuma fatura pendente</p>
+            <div className="text-center py-10">
+              <Check className="w-10 h-10 text-emerald-500/40 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">Nenhuma fatura pendente</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3">Faturas por vencimento</p>
               {faturas.map((f, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-dark-hover)] border border-[var(--color-dark-border)]">
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-dark-hover)] border border-[var(--color-dark-border)] hover:border-red-500/20 transition-all">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-4 h-4 text-slate-400" />
+                    <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4 text-red-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-white">Vencimento {f.label}</p>
-                      <p className="text-xs text-slate-500">Fatura agrupada</p>
+                      <p className="text-sm font-semibold text-white">Vence {f.label}</p>
+                      <p className="text-xs text-slate-500">{f.itens} lançamento{f.itens > 1 ? 's' : ''}</p>
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-red-400">
-                    {formatCurrency(f.valor)}
-                  </p>
+                  <p className="text-sm font-bold text-red-400">{formatCurrency(f.total)}</p>
                 </div>
               ))}
-              
-              <div className="mt-4 pt-4 border-t border-[var(--color-dark-border)] flex justify-between items-center">
-                <p className="text-sm font-semibold text-slate-300">Total Previsto</p>
-                <p className="text-base font-bold text-red-400">{formatCurrency(total)}</p>
-              </div>
             </div>
           )}
         </div>
+
+        {/* Footer total */}
+        {faturas.length > 0 && (
+          <div className="px-4 py-3 border-t border-[var(--color-dark-border)] flex justify-between items-center flex-shrink-0 bg-[var(--color-dark-surface)]">
+            <p className="text-sm font-semibold text-slate-300">Total Previsto</p>
+            <p className="text-base font-bold text-red-400">{formatCurrency(totalGeral)}</p>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );
