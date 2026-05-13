@@ -36,6 +36,8 @@ export default function LancamentosPage() {
 
   const categorias = useLiveQuery(() => db.categorias.toArray()) || [];
   const contas = useLiveQuery(() => db.contas.toArray()) || [];
+  const cartoes = useLiveQuery(() => db.cartoes.toArray()) || [];
+  const pessoas = useLiveQuery(() => db.pessoas.toArray()) || [];
   const rawLancamentos = useLiveQuery(() => db.lancamentos.toArray()) || [];
   const lancamentos = useMemo(() => rawLancamentos.filter(l => !l.deleted_at), [rawLancamentos]);
 
@@ -93,6 +95,7 @@ export default function LancamentosPage() {
   };
 
   const getCatName = (id?: string) => categorias.find(c => c.id === id)?.nome || '';
+  const getPessoaName = (id?: string) => pessoas.find(p => p.id === id)?.nome || '';
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 w-full">
@@ -241,6 +244,8 @@ export default function LancamentosPage() {
             onClose={() => { setShowForm(false); setEditData(null); }}
             categorias={categorias}
             contas={contas}
+            cartoes={cartoes}
+            pessoas={pessoas}
             userId={user!.id}
             tenantId={profile!.tenant_id}
             onFeedback={showFeedback}

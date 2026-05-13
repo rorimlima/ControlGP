@@ -19,6 +19,7 @@ const ContasPage = lazy(() => import('@/features/contas/ContasPage'));
 const CategoriasPage = lazy(() => import('@/features/categorias/CategoriasPage'));
 const CartoesPage = lazy(() => import('@/features/cartoes/CartoesPage'));
 const MetasPage = lazy(() => import('@/features/metas/MetasPage'));
+const PessoasPage = lazy(() => import('@/features/pessoas/PessoasPage'));
 const ConfiguracoesPage = lazy(() => import('@/features/configuracoes/ConfiguracoesPage'));
 
 function ProtectedRoute({ children, requireMaster = false }: { children: React.ReactNode; requireMaster?: boolean }) {
@@ -113,6 +114,7 @@ export default function App() {
           <Route path="/categorias" element={<CategoriasPage />} />
           <Route path="/cartoes" element={<CartoesPage />} />
           <Route path="/metas" element={<MetasPage />} />
+          <Route path="/pessoas" element={<PessoasPage />} />
           <Route path="/configuracoes" element={<ConfiguracoesPage />} />
         </Route>
 

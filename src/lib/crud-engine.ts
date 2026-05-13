@@ -7,7 +7,7 @@ import { generateId } from './utils';
 // UNIVERSAL CRUD ENGINE — Direct Supabase Operations
 // ============================================================
 
-type SupabaseTable = 'lancamentos' | 'contas' | 'categorias' | 'cartoes' | 'metas';
+type SupabaseTable = 'lancamentos' | 'contas' | 'categorias' | 'cartoes' | 'metas' | 'pessoas';
 
 export interface CrudResult<T = unknown> {
   data: T | null;

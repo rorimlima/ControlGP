@@ -15,6 +15,7 @@ export interface LocalLancamento {
   data_vencimento: string;
   data_pagamento?: string;
   status: 'pendente' | 'pago' | 'vencido' | 'cancelado';
+  pessoa_id?: string;
   categoria_id?: string;
   subcategoria_id?: string;
   conta_id?: string;
@@ -126,6 +127,27 @@ export interface LocalMeta {
   last_synced_at?: string;
 }
 
+export interface LocalPessoa {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  nome: string;
+  tipo: 'pagador' | 'recebedor' | 'ambos';
+  cpf_cnpj?: string;
+  email?: string;
+  telefone?: string;
+  banco?: string;
+  pix_chave?: string;
+  observacoes?: string;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  version: number;
+  sync_status: 'synced' | 'pending' | 'error';
+  last_synced_at?: string;
+}
+
 export interface SyncQueueItem {
   id?: number;
   table_name: string;
@@ -150,6 +172,7 @@ class ControlGPDatabase extends Dexie {
   categorias!: Table<LocalCategoria, string>;
   cartoes!: Table<LocalCartao, string>;
   metas!: Table<LocalMeta, string>;
+  pessoas!: Table<LocalPessoa, string>;
   sync_queue!: Table<SyncQueueItem, number>;
   sync_meta!: Table<SyncMeta, number>;
 
@@ -162,6 +185,17 @@ class ControlGPDatabase extends Dexie {
       categorias: 'id, tenant_id, user_id, tipo, ativo, updated_at, sync_status',
       cartoes: 'id, tenant_id, user_id, ativo, updated_at, sync_status',
       metas: 'id, tenant_id, user_id, status, updated_at, sync_status',
+      sync_queue: '++id, table_name, record_id, synced, created_at',
+      sync_meta: '++id, table_name',
+    });
+
+    this.version(2).stores({
+      lancamentos: 'id, tenant_id, user_id, tipo, status, categoria_id, conta_id, cartao_id, pessoa_id, data_competencia, data_vencimento, updated_at, sync_status',
+      contas: 'id, tenant_id, user_id, ativo, updated_at, sync_status',
+      categorias: 'id, tenant_id, user_id, tipo, ativo, updated_at, sync_status',
+      cartoes: 'id, tenant_id, user_id, ativo, updated_at, sync_status',
+      metas: 'id, tenant_id, user_id, status, updated_at, sync_status',
+      pessoas: 'id, tenant_id, user_id, tipo, ativo, updated_at, sync_status',
       sync_queue: '++id, table_name, record_id, synced, created_at',
       sync_meta: '++id, table_name',
     });

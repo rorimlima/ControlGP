@@ -5,7 +5,7 @@ import { db, type SyncQueueItem } from './database';
 // SYNC ENGINE — DELTA SYNC + CONFLICT RESOLUTION
 // ============================================================
 
-const SYNC_TABLES = ['lancamentos', 'contas', 'categorias', 'cartoes', 'metas'] as const;
+const SYNC_TABLES = ['lancamentos', 'contas', 'categorias', 'cartoes', 'metas', 'pessoas'] as const;
 type SyncTable = typeof SYNC_TABLES[number];
 
 const MAX_RETRIES = 5;

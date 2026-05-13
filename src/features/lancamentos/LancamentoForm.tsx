@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
-import { type LocalLancamento, type LocalCategoria, type LocalConta } from '@/lib/database';
+import { Loader2, ArrowDownRight, ArrowUpRight, Plus } from 'lucide-react';
+import { type LocalLancamento, type LocalCategoria, type LocalConta, type LocalCartao, type LocalPessoa } from '@/lib/database';
 import { crudInsert, crudUpdate } from '@/lib/crud-engine';
 import { cn } from '@/lib/utils';
 
@@ -10,27 +10,44 @@ interface Props {
   onClose: () => void;
   categorias: LocalCategoria[];
   contas: LocalConta[];
+  cartoes: LocalCartao[];
+  pessoas: LocalPessoa[];
   userId: string;
   tenantId: string;
   onFeedback: (type: 'success' | 'error', msg: string) => void;
 }
 
-export default function LancamentoForm({ editData, onClose, categorias, contas, userId, tenantId, onFeedback }: Props) {
+export default function LancamentoForm({ editData, onClose, categorias, contas, cartoes, pessoas, userId, tenantId, onFeedback }: Props) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    tipo: editData?.tipo || 'despesa' as 'receita' | 'despesa' | 'transferencia',
+    tipo: editData?.tipo || 'despesa' as 'receita' | 'despesa',
     descricao: editData?.descricao || '',
     valor: editData ? String(editData.valor) : '',
     data_competencia: editData?.data_competencia || new Date().toISOString().split('T')[0],
     data_vencimento: editData?.data_vencimento || new Date().toISOString().split('T')[0],
     status: (editData?.status || 'pendente') as 'pendente' | 'pago',
+    pessoa_id: editData?.pessoa_id || '',
     categoria_id: editData?.categoria_id || '',
     conta_id: editData?.conta_id || '',
+    cartao_id: editData?.cartao_id || '',
     forma_pagamento: editData?.forma_pagamento || 'pix',
     observacoes: editData?.observacoes || '',
   });
 
+  const isReceita = form.tipo === 'receita';
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  // Filter pessoas by transaction type
+  const pessoasFiltradas = pessoas.filter(p => {
+    if (!p.ativo || p.deleted_at) return false;
+    if (isReceita) return p.tipo === 'recebedor' || p.tipo === 'ambos';
+    return p.tipo === 'pagador' || p.tipo === 'ambos';
+  });
+
+  // Filter categorias by type
+  const categoriasFiltradas = categorias.filter(c => c.tipo === form.tipo && c.ativo && !c.deleted_at);
+  const contasAtivas = contas.filter(c => c.ativo && !c.deleted_at);
+  const cartoesAtivos = cartoes.filter(c => c.ativo && !c.deleted_at);
 
   const handleSave = async () => {
     if (!form.descricao.trim()) return onFeedback('error', 'Descrição é obrigatória');
@@ -38,18 +55,21 @@ export default function LancamentoForm({ editData, onClose, categorias, contas, 
 
     setSaving(true);
     const now = new Date().toISOString();
+    const valor = parseFloat(form.valor);
 
     const payload = {
       tipo: form.tipo,
       descricao: form.descricao,
-      valor: parseFloat(form.valor),
+      valor,
       data_competencia: form.data_competencia,
       data_vencimento: form.data_vencimento,
       data_pagamento: form.status === 'pago' ? now.split('T')[0] : null,
       status: form.status,
+      pessoa_id: form.pessoa_id || null,
       categoria_id: form.categoria_id || null,
       conta_id: form.conta_id || null,
-      forma_pagamento: form.forma_pagamento,
+      cartao_id: (!isReceita && form.forma_pagamento === 'cartao_credito') ? (form.cartao_id || null) : null,
+      forma_pagamento: isReceita ? null : form.forma_pagamento,
       parcelado: false,
       recorrente: false,
       tags: [],
@@ -63,7 +83,7 @@ export default function LancamentoForm({ editData, onClose, categorias, contas, 
     } else {
       const { error } = await crudInsert('lancamentos', payload, userId, tenantId);
       if (error) onFeedback('error', error);
-      else onFeedback('success', 'Lançamento criado com sucesso');
+      else onFeedback('success', isReceita ? 'Recebimento registrado' : 'Pagamento registrado');
     }
 
     setSaving(false);
@@ -76,24 +96,40 @@ export default function LancamentoForm({ editData, onClose, categorias, contas, 
         <div className="p-6 space-y-4">
           <h2 className="text-lg font-bold text-white">{editData ? 'Editar' : 'Novo'} Lançamento</h2>
 
+          {/* ==== TIPO: A RECEBER / A PAGAR ==== */}
           <div className="flex gap-2">
-            {(['receita', 'despesa'] as const).map(t => (
-              <button key={t} onClick={() => set('tipo', t)} className={cn('flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all', form.tipo === t ? (t === 'receita' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-red-500/15 text-red-400 border-red-500/30') : 'text-slate-400 border-[var(--color-dark-border)]')}>
-                {t === 'receita' ? 'Receita' : 'Despesa'}
-              </button>
-            ))}
+            <button onClick={() => { set('tipo', 'receita'); set('forma_pagamento', ''); set('cartao_id', ''); }} className={cn('flex-1 py-3 rounded-xl text-sm font-semibold border transition-all flex items-center justify-center gap-2', form.tipo === 'receita' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'text-slate-400 border-[var(--color-dark-border)]')}>
+              <ArrowUpRight className="w-4 h-4" /> A Receber
+            </button>
+            <button onClick={() => { set('tipo', 'despesa'); set('forma_pagamento', 'pix'); }} className={cn('flex-1 py-3 rounded-xl text-sm font-semibold border transition-all flex items-center justify-center gap-2', form.tipo === 'despesa' ? 'bg-red-500/15 text-red-400 border-red-500/30' : 'text-slate-400 border-[var(--color-dark-border)]')}>
+              <ArrowDownRight className="w-4 h-4" /> A Pagar
+            </button>
           </div>
 
+          {/* ==== DESCRIÇÃO ==== */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Descrição *</label>
-            <input value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder="Ex: Aluguel" className="input-field" />
+            <input value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder={isReceita ? 'Ex: Salário, Freelance...' : 'Ex: Aluguel, Conta de luz...'} className="input-field" />
           </div>
 
+          {/* ==== VALOR ==== */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Valor *</label>
             <input type="number" step="0.01" value={form.valor} onChange={e => set('valor', e.target.value)} placeholder="0,00" className="input-field text-lg font-bold" />
           </div>
 
+          {/* ==== PESSOA ==== */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              {isReceita ? 'Receber de' : 'Pagar para'}
+            </label>
+            <select value={form.pessoa_id} onChange={e => set('pessoa_id', e.target.value)} className="input-field">
+              <option value="">Selecionar pessoa...</option>
+              {pessoasFiltradas.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </div>
+
+          {/* ==== DATAS ==== */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Competência</label>
@@ -105,48 +141,74 @@ export default function LancamentoForm({ editData, onClose, categorias, contas, 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Categoria</label>
-              <select value={form.categoria_id} onChange={e => set('categoria_id', e.target.value)} className="input-field">
-                <option value="">Selecionar</option>
-                {categorias.filter(c => c.tipo === form.tipo && c.ativo && !c.deleted_at).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Conta</label>
-              <select value={form.conta_id} onChange={e => set('conta_id', e.target.value)} className="input-field">
-                <option value="">Selecionar</option>
-                {contas.filter(c => c.ativo && !c.deleted_at).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-              </select>
-            </div>
-          </div>
-
+          {/* ==== CATEGORIA ==== */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Forma de Pagamento</label>
-            <select value={form.forma_pagamento} onChange={e => set('forma_pagamento', e.target.value)} className="input-field">
-              <option value="pix">PIX</option>
-              <option value="dinheiro">Dinheiro</option>
-              <option value="boleto">Boleto</option>
-              <option value="cartao_credito">Cartão Crédito</option>
-              <option value="cartao_debito">Cartão Débito</option>
-              <option value="transferencia">Transferência</option>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Categoria</label>
+            <select value={form.categoria_id} onChange={e => set('categoria_id', e.target.value)} className="input-field">
+              <option value="">Selecionar</option>
+              {categoriasFiltradas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </select>
           </div>
 
+          {/* ==== CONTA (para A Receber: onde o valor entra / para A Pagar: de onde sai) ==== */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              {isReceita ? 'Entra na conta' : 'Sai da conta'}
+            </label>
+            <select value={form.conta_id} onChange={e => set('conta_id', e.target.value)} className="input-field">
+              <option value="">Selecionar conta</option>
+              {contasAtivas.map(c => <option key={c.id} value={c.id}>{c.nome} {c.banco ? `(${c.banco})` : ''}</option>)}
+            </select>
+          </div>
+
+          {/* ==== FORMA DE PAGAMENTO (só para A Pagar) ==== */}
+          {!isReceita && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Forma de Pagamento</label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: 'pix', label: 'PIX' },
+                  { value: 'dinheiro', label: 'Dinheiro' },
+                  { value: 'boleto', label: 'Boleto' },
+                  { value: 'cartao_credito', label: 'Cartão Crédito' },
+                  { value: 'cartao_debito', label: 'Cartão Débito' },
+                  { value: 'transferencia', label: 'Transferência' },
+                ] as const).map(fp => (
+                  <button key={fp.value} onClick={() => set('forma_pagamento', fp.value)} className={cn('py-2 rounded-xl text-xs font-medium border transition-all', form.forma_pagamento === fp.value ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' : 'text-slate-400 border-[var(--color-dark-border)]')}>
+                    {fp.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ==== CARTÃO (quando forma = cartao_credito) ==== */}
+          {!isReceita && form.forma_pagamento === 'cartao_credito' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Cartão de Crédito</label>
+              <select value={form.cartao_id} onChange={e => set('cartao_id', e.target.value)} className="input-field">
+                <option value="">Selecionar cartão</option>
+                {cartoesAtivos.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.bandeira.toUpperCase()})</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* ==== OBSERVAÇÕES ==== */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-1.5">Observações</label>
             <textarea value={form.observacoes} onChange={e => set('observacoes', e.target.value)} rows={2} className="input-field resize-none" placeholder="Anotações opcionais..." />
           </div>
 
+          {/* ==== STATUS ==== */}
           <div className="flex gap-2">
             {(['pendente', 'pago'] as const).map(s => (
               <button key={s} onClick={() => set('status', s)} className={cn('flex-1 py-2 rounded-xl text-sm font-medium border transition-all', form.status === s ? (s === 'pago' ? 'badge-pago' : 'badge-pendente') : 'text-slate-400 border-[var(--color-dark-border)]')}>
-                {s === 'pago' ? 'Pago' : 'Pendente'}
+                {s === 'pago' ? (isReceita ? 'Recebido' : 'Pago') : 'Pendente'}
               </button>
             ))}
           </div>
 
+          {/* ==== AÇÕES ==== */}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 py-3 rounded-xl text-sm font-medium text-slate-400 border border-[var(--color-dark-border)] hover:bg-[var(--color-dark-hover)]">Cancelar</button>
             <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
