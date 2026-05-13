@@ -48,7 +48,7 @@ export default function Sidebar() {
       )}
     >
       {/* Logo */}
-      <div className="h-[var(--spacing-navbar)] flex items-center px-5 border-b border-[var(--color-dark-border)]">
+      <div className="flex items-center px-5 border-b border-[var(--color-dark-border)]" style={{ height: 'var(--spacing-navbar)' }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center flex-shrink-0">
             <TrendingUp className="w-5 h-5 text-white" />

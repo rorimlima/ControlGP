@@ -26,9 +26,12 @@ export default function Navbar() {
   return (
     <header
       className={cn(
-        'fixed top-0 right-0 h-[var(--spacing-navbar)] z-30 glass border-b border-[var(--color-dark-border)] transition-all duration-300',
-        isMobile ? 'left-0' : sidebarCollapsed ? 'left-[var(--spacing-sidebar-collapsed)]' : 'left-[var(--spacing-sidebar)]'
+        'fixed top-0 right-0 z-30 glass border-b border-[var(--color-dark-border)] transition-all duration-300',
       )}
+      style={{
+        height: 'var(--spacing-navbar)',
+        left: isMobile ? 0 : sidebarCollapsed ? 'var(--spacing-sidebar-collapsed)' : 'var(--spacing-sidebar)',
+      }}
     >
       <div className="h-full flex items-center justify-between px-4 md:px-6">
         {/* Left */}

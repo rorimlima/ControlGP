@@ -19,7 +19,7 @@ export default function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-[var(--color-dark-border)]"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <div className="flex items-stretch justify-around h-[var(--spacing-bottom-nav)]">
+      <div className="flex items-stretch justify-around" style={{ height: 'var(--spacing-bottom-nav)' }}>
         {bottomNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;

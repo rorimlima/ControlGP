@@ -49,8 +49,9 @@ export default function AppLayout() {
 
       {/* Main Content */}
       <main
-        className="main-content transition-all duration-300 pt-[var(--spacing-navbar)]"
+        className="main-content transition-all duration-300"
         style={{
+          paddingTop: 'var(--spacing-navbar)',
           marginLeft: isMobile
             ? 0
             : sidebarCollapsed
