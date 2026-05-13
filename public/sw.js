@@ -1,10 +1,10 @@
 // ============================================================
-// Control GP — Service Worker v3.0
+// Control GP — Service Worker v4.0
 // Estratégia: Cache-First (static) | Network-First (API/auth)
 // | Stale-While-Revalidate (outros) | Offline Fallback
 // ============================================================
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const STATIC_CACHE  = `cgp-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `cgp-dynamic-${CACHE_VERSION}`;
 const API_CACHE     = `cgp-api-${CACHE_VERSION}`;
