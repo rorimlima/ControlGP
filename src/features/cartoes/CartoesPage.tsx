@@ -20,6 +20,7 @@ const CSV_COLUMNS = [
 export default function CartoesPage() {
   const { profile, user } = useAuthStore();
   const raw = useLiveQuery(() => db.cartoes.toArray()) || [];
+  const rawLancamentos = useLiveQuery(() => db.lancamentos.toArray()) || [];
   const cartoes = useMemo(() => raw.filter(c => !c.deleted_at), [raw]);
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<LocalCartao | null>(null);
@@ -39,10 +40,16 @@ export default function CartoesPage() {
     setDeleteConfirm(null);
   };
 
+  const getDisponivel = (cartaoId: string, limiteTotal: number) => {
+    const pendentes = rawLancamentos.filter(l => !l.deleted_at && l.cartao_id === cartaoId && l.status === 'pendente');
+    const consumido = pendentes.reduce((acc, l) => acc + l.valor, 0);
+    return Math.max(0, limiteTotal - consumido);
+  };
+
   const handleExport = () => {
     const data = cartoes.map(c => ({
       nome: c.nome, banco: c.banco || '', bandeira: c.bandeira.toUpperCase(),
-      limite: c.limite.toFixed(2), disponivel: c.limite_disponivel.toFixed(2),
+      limite: c.limite.toFixed(2), disponivel: getDisponivel(c.id, c.limite).toFixed(2),
       fechamento: String(c.dia_fechamento), vencimento: String(c.dia_vencimento),
     }));
     exportToCSV(data, 'cartoes', CSV_COLUMNS);
@@ -52,7 +59,7 @@ export default function CartoesPage() {
   const handlePrint = () => {
     const data = cartoes.map(c => ({
       nome: c.nome, banco: c.banco || '', bandeira: c.bandeira.toUpperCase(),
-      limite: formatCurrency(c.limite), disponivel: formatCurrency(c.limite_disponivel),
+      limite: formatCurrency(c.limite), disponivel: formatCurrency(getDisponivel(c.id, c.limite)),
       fechamento: String(c.dia_fechamento), vencimento: String(c.dia_vencimento),
     }));
     printTable('Relatório de Cartões', data, CSV_COLUMNS);
@@ -104,7 +111,7 @@ export default function CartoesPage() {
             <p className="text-sm text-white/60 mb-4">{c.banco || c.bandeira.toUpperCase()}</p>
             <div className="flex justify-between text-sm">
               <div><p className="text-white/50 text-xs">Limite</p><p className="text-white font-semibold">{formatCurrency(c.limite)}</p></div>
-              <div className="text-right"><p className="text-white/50 text-xs">Disponível</p><p className="text-white font-semibold">{formatCurrency(c.limite_disponivel)}</p></div>
+              <div className="text-right"><p className="text-white/50 text-xs">Disponível</p><p className="text-white font-semibold">{formatCurrency(getDisponivel(c.id, c.limite))}</p></div>
             </div>
             <div className="mt-3 flex gap-4 text-xs text-white/50 mb-4">
               <span>Fecha dia {c.dia_fechamento}</span>
