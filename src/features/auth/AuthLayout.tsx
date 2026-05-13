@@ -17,13 +17,26 @@ export default function AuthLayout() {
       className="gradient-dark gradient-mesh"
       style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}
     >
-      {/* Ambient glows */}
-      <div aria-hidden style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-        <div style={{
-          position: 'absolute', top: '-10%', right: '-5%',
-          width: 400, height: 400,
-          background: 'radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 70%)',
-        }} />
+      {/* Ambient glows animated */}
+      <div aria-hidden style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.6, 0.4] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            position: 'absolute', top: '-15%', right: '-10%',
+            width: '60vw', height: '60vw',
+            background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)',
+          }} 
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          style={{
+            position: 'absolute', bottom: '-20%', left: '-15%',
+            width: '70vw', height: '70vw',
+            background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)',
+          }} 
+        />
       </div>
 
       {/* Back button */}
