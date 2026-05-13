@@ -1,51 +1,108 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Plus, Landmark, Edit3, Trash2 } from 'lucide-react';
-import { db } from '@/lib/database';
+import { Plus, Landmark, Edit3, Trash2, Printer, Download, Loader2, Check, X } from 'lucide-react';
+import { db, type LocalConta } from '@/lib/database';
 import { useAuthStore } from '@/stores/auth-store';
-import { addToSyncQueue } from '@/lib/sync-engine';
-import { formatCurrency, generateId, cn } from '@/lib/utils';
+import { crudInsert, crudUpdate, crudDelete, exportToCSV, printTable } from '@/lib/crud-engine';
+import { formatCurrency, cn } from '@/lib/utils';
+
+const CSV_COLUMNS = [
+  { key: 'nome', label: 'Nome' },
+  { key: 'banco', label: 'Banco' },
+  { key: 'tipo_conta', label: 'Tipo' },
+  { key: 'saldo_inicial', label: 'Saldo Inicial' },
+  { key: 'saldo_atual', label: 'Saldo Atual' },
+];
 
 export default function ContasPage() {
-  const { profile } = useAuthStore();
+  const { profile, user } = useAuthStore();
   const rawContas = useLiveQuery(() => db.contas.toArray()) || [];
-  const contas = rawContas.filter(c => !c.deleted_at);
+  const contas = useMemo(() => rawContas.filter(c => !c.deleted_at), [rawContas]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nome: '', banco: '', tipo_conta: 'corrente', saldo_inicial: '', cor: '#3B82F6' });
+  const [editData, setEditData] = useState<LocalConta | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const saldoTotal = contas.reduce((s, c) => s + c.saldo_atual, 0);
-  const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
-  const handleSave = async () => {
-    if (!form.nome || !profile) return;
-    const now = new Date().toISOString();
-    const id = generateId();
-    const record = { id, tenant_id: profile.tenant_id, user_id: profile.id, nome: form.nome, banco: form.banco, tipo_conta: form.tipo_conta, saldo_inicial: parseFloat(form.saldo_inicial || '0'), saldo_atual: parseFloat(form.saldo_inicial || '0'), cor: form.cor, icone: 'building-2', conta_principal: contas.length === 0, ativo: true, ordem: contas.length, created_at: now, updated_at: now, version: 1, sync_status: 'pending' as const };
-    await db.contas.put(record);
-    await addToSyncQueue('contas', id, 'insert', record as any);
-    setForm({ nome: '', banco: '', tipo_conta: 'corrente', saldo_inicial: '', cor: '#3B82F6' });
-    setShowForm(false);
+  const showFeedback = (type: 'success' | 'error', msg: string) => {
+    setFeedback({ type, msg });
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   const handleDelete = async (id: string) => {
-    const now = new Date().toISOString();
-    await db.contas.update(id, { deleted_at: now, sync_status: 'pending' });
-    await addToSyncQueue('contas', id, 'delete', { deleted_at: now });
+    const { error } = await crudDelete('contas', id);
+    if (error) showFeedback('error', error);
+    else showFeedback('success', 'Conta removida');
+    setDeleteConfirm(null);
+  };
+
+  const handleExport = () => {
+    const data = contas.map(c => ({
+      nome: c.nome,
+      banco: c.banco || '',
+      tipo_conta: c.tipo_conta,
+      saldo_inicial: c.saldo_inicial.toFixed(2),
+      saldo_atual: c.saldo_atual.toFixed(2),
+    }));
+    exportToCSV(data, 'contas_bancarias', CSV_COLUMNS);
+    showFeedback('success', 'CSV exportado');
+  };
+
+  const handlePrint = () => {
+    const data = contas.map(c => ({
+      nome: c.nome,
+      banco: c.banco || '',
+      tipo_conta: c.tipo_conta,
+      saldo_inicial: formatCurrency(c.saldo_inicial),
+      saldo_atual: formatCurrency(c.saldo_atual),
+    }));
+    printTable('Relatório de Contas Bancárias', data, CSV_COLUMNS);
   };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Feedback */}
+      <AnimatePresence>
+        {feedback && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            className={cn('fixed top-4 right-4 z-[100] flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium shadow-xl backdrop-blur-sm',
+              feedback.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'
+            )}>
+            {feedback.type === 'success' ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+            {feedback.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Contas Bancárias</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Contas Bancárias</h1>
           <p className="text-sm text-slate-400 mt-1">Saldo total: <span className="text-blue-400 font-semibold">{formatCurrency(saldoTotal)}</span></p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2"><Plus className="w-4 h-4" /> Nova</button>
+        <div className="flex items-center gap-2">
+          <button onClick={handlePrint} className="p-2.5 rounded-xl border border-[var(--color-dark-border)] text-slate-400 hover:text-white hover:bg-[var(--color-dark-hover)] transition-all" title="Imprimir">
+            <Printer className="w-4 h-4" />
+          </button>
+          <button onClick={handleExport} className="p-2.5 rounded-xl border border-[var(--color-dark-border)] text-slate-400 hover:text-white hover:bg-[var(--color-dark-hover)] transition-all" title="Exportar CSV">
+            <Download className="w-4 h-4" />
+          </button>
+          <button onClick={() => { setEditData(null); setShowForm(true); }} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Nova
+          </button>
+        </div>
       </div>
 
+      {/* Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {contas.map((c, i) => (
+        {contas.length === 0 ? (
+          <div className="card p-10 text-center col-span-full">
+            <Landmark className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+            <p className="text-slate-400 text-sm">Nenhuma conta cadastrada</p>
+          </div>
+        ) : contas.map((c, i) => (
           <motion.div key={c.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="card p-5 group">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -57,7 +114,10 @@ export default function ContasPage() {
                   <p className="text-xs text-slate-500">{c.banco || c.tipo_conta}</p>
                 </div>
               </div>
-              <button onClick={() => handleDelete(c.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-4 h-4" /></button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <button onClick={() => { setEditData(c); setShowForm(true); }} className="p-1.5 rounded-lg text-slate-400 hover:bg-[var(--color-dark-hover)]"><Edit3 className="w-4 h-4" /></button>
+                <button onClick={() => setDeleteConfirm(c.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
+              </div>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-xs"><span className="text-slate-500">Saldo Inicial</span><span className="text-slate-400">{formatCurrency(c.saldo_inicial)}</span></div>
@@ -68,26 +128,105 @@ export default function ContasPage() {
         ))}
       </div>
 
+      {/* Delete Confirmation */}
       <AnimatePresence>
-        {showForm && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
-            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="card w-full max-w-md rounded-t-3xl md:rounded-2xl p-6 space-y-4">
-              <h2 className="text-lg font-bold text-white">Nova Conta</h2>
-              <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Nome</label><input value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Nubank" className="input-field" /></div>
-              <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Banco</label><input value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Ex: Nu Pagamentos" className="input-field" /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Tipo</label><select value={form.tipo_conta} onChange={e => set('tipo_conta', e.target.value)} className="input-field"><option value="corrente">Corrente</option><option value="poupanca">Poupança</option><option value="investimento">Investimento</option><option value="carteira">Carteira</option></select></div>
-                <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Saldo Inicial</label><input type="number" step="0.01" value={form.saldo_inicial} onChange={e => set('saldo_inicial', e.target.value)} placeholder="0,00" className="input-field" /></div>
-              </div>
-              <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Cor</label><input type="color" value={form.cor} onChange={e => set('cor', e.target.value)} className="w-full h-10 rounded-xl cursor-pointer bg-transparent" /></div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowForm(false)} className="flex-1 py-3 rounded-xl text-sm text-slate-400 border border-[var(--color-dark-border)] hover:bg-[var(--color-dark-hover)]">Cancelar</button>
-                <button onClick={handleSave} className="btn-primary flex-1 py-3">Criar</button>
+        {deleteConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setDeleteConfirm(null)}>
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="card p-6 max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-white mb-2">Confirmar Exclusão</h3>
+              <p className="text-sm text-slate-400 mb-4">Deseja remover esta conta?</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-slate-400 border border-[var(--color-dark-border)]">Cancelar</button>
+                <button onClick={() => handleDelete(deleteConfirm)} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all">Excluir</button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <ContaForm
+            editData={editData}
+            onClose={() => { setShowForm(false); setEditData(null); }}
+            userId={user!.id}
+            tenantId={profile!.tenant_id}
+            contasCount={contas.length}
+            onFeedback={showFeedback}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ============================================================
+// CONTA FORM
+// ============================================================
+function ContaForm({ editData, onClose, userId, tenantId, contasCount, onFeedback }: {
+  editData: LocalConta | null; onClose: () => void; userId: string; tenantId: string; contasCount: number;
+  onFeedback: (type: 'success' | 'error', msg: string) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    nome: editData?.nome || '',
+    banco: editData?.banco || '',
+    tipo_conta: editData?.tipo_conta || 'corrente',
+    saldo_inicial: editData ? String(editData.saldo_inicial) : '',
+    cor: editData?.cor || '#3B82F6',
+  });
+
+  const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSave = async () => {
+    if (!form.nome.trim()) return onFeedback('error', 'Nome é obrigatório');
+    setSaving(true);
+
+    const saldoInicial = parseFloat(form.saldo_inicial || '0');
+    const payload = {
+      nome: form.nome,
+      banco: form.banco || null,
+      tipo_conta: form.tipo_conta,
+      saldo_inicial: saldoInicial,
+      saldo_atual: editData ? editData.saldo_atual : saldoInicial,
+      cor: form.cor,
+      icone: 'building-2',
+      conta_principal: editData ? editData.conta_principal : contasCount === 0,
+      ativo: true,
+      ordem: editData ? editData.ordem : contasCount,
+    };
+
+    if (editData) {
+      const { error } = await crudUpdate('contas', editData.id, payload);
+      if (error) onFeedback('error', error); else onFeedback('success', 'Conta atualizada');
+    } else {
+      const { error } = await crudInsert('contas', payload, userId, tenantId);
+      if (error) onFeedback('error', error); else onFeedback('success', 'Conta criada');
+    }
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={e => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="card w-full max-w-md rounded-t-3xl md:rounded-2xl p-6 space-y-4">
+        <h2 className="text-lg font-bold text-white">{editData ? 'Editar' : 'Nova'} Conta</h2>
+        <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Nome *</label><input value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Ex: Nubank" className="input-field" /></div>
+        <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Banco</label><input value={form.banco} onChange={e => set('banco', e.target.value)} placeholder="Ex: Nu Pagamentos" className="input-field" /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Tipo</label><select value={form.tipo_conta} onChange={e => set('tipo_conta', e.target.value)} className="input-field"><option value="corrente">Corrente</option><option value="poupanca">Poupança</option><option value="investimento">Investimento</option><option value="carteira">Carteira</option></select></div>
+          <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Saldo Inicial</label><input type="number" step="0.01" value={form.saldo_inicial} onChange={e => set('saldo_inicial', e.target.value)} placeholder="0,00" className="input-field" /></div>
+        </div>
+        <div><label className="block text-sm font-medium text-slate-300 mb-1.5">Cor</label><input type="color" value={form.cor} onChange={e => set('cor', e.target.value)} className="w-full h-10 rounded-xl cursor-pointer bg-transparent" /></div>
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl text-sm text-slate-400 border border-[var(--color-dark-border)] hover:bg-[var(--color-dark-hover)]">Cancelar</button>
+          <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {saving ? 'Salvando...' : editData ? 'Salvar' : 'Criar'}
+          </button>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }

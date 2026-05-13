@@ -1,18 +1,22 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { db, type LocalLancamento, type LocalCategoria, type LocalConta } from '@/lib/database';
-import { addToSyncQueue } from '@/lib/sync-engine';
-import { generateId, cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+import { type LocalLancamento, type LocalCategoria, type LocalConta } from '@/lib/database';
+import { crudInsert, crudUpdate } from '@/lib/crud-engine';
+import { cn } from '@/lib/utils';
 
 interface Props {
   editData: LocalLancamento | null;
   onClose: () => void;
   categorias: LocalCategoria[];
   contas: LocalConta[];
-  profile: { id: string; tenant_id: string };
+  userId: string;
+  tenantId: string;
+  onFeedback: (type: 'success' | 'error', msg: string) => void;
 }
 
-export default function LancamentoForm({ editData, onClose, categorias, contas, profile }: Props) {
+export default function LancamentoForm({ editData, onClose, categorias, contas, userId, tenantId, onFeedback }: Props) {
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     tipo: editData?.tipo || 'despesa' as 'receita' | 'despesa' | 'transferencia',
     descricao: editData?.descricao || '',
@@ -29,37 +33,40 @@ export default function LancamentoForm({ editData, onClose, categorias, contas, 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSave = async () => {
-    if (!form.descricao || !form.valor) return;
-    const now = new Date().toISOString();
-    const id = editData?.id || generateId();
+    if (!form.descricao.trim()) return onFeedback('error', 'Descrição é obrigatória');
+    if (!form.valor || parseFloat(form.valor) <= 0) return onFeedback('error', 'Valor deve ser maior que zero');
 
-    const record: LocalLancamento = {
-      id,
-      tenant_id: profile.tenant_id,
-      user_id: profile.id,
+    setSaving(true);
+    const now = new Date().toISOString();
+
+    const payload = {
       tipo: form.tipo,
       descricao: form.descricao,
       valor: parseFloat(form.valor),
       data_competencia: form.data_competencia,
       data_vencimento: form.data_vencimento,
-      data_pagamento: form.status === 'pago' ? now.split('T')[0] : undefined,
+      data_pagamento: form.status === 'pago' ? now.split('T')[0] : null,
       status: form.status,
-      categoria_id: form.categoria_id || undefined,
-      conta_id: form.conta_id || undefined,
+      categoria_id: form.categoria_id || null,
+      conta_id: form.conta_id || null,
       forma_pagamento: form.forma_pagamento,
       parcelado: false,
       recorrente: false,
       tags: [],
-      observacoes: form.observacoes,
-      created_at: editData?.created_at || now,
-      updated_at: now,
-      version: (editData?.version || 0) + 1,
-      sync_status: 'pending',
+      observacoes: form.observacoes || null,
     };
 
-    await db.lancamentos.put(record);
-    const { sync_status, last_synced_at, ...payload } = record;
-    await addToSyncQueue('lancamentos', id, editData ? 'update' : 'insert', payload as any);
+    if (editData) {
+      const { error } = await crudUpdate('lancamentos', editData.id, payload);
+      if (error) onFeedback('error', error);
+      else onFeedback('success', 'Lançamento atualizado');
+    } else {
+      const { error } = await crudInsert('lancamentos', payload, userId, tenantId);
+      if (error) onFeedback('error', error);
+      else onFeedback('success', 'Lançamento criado com sucesso');
+    }
+
+    setSaving(false);
     onClose();
   };
 
@@ -78,12 +85,12 @@ export default function LancamentoForm({ editData, onClose, categorias, contas, 
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Descrição</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Descrição *</label>
             <input value={form.descricao} onChange={e => set('descricao', e.target.value)} placeholder="Ex: Aluguel" className="input-field" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Valor</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Valor *</label>
             <input type="number" step="0.01" value={form.valor} onChange={e => set('valor', e.target.value)} placeholder="0,00" className="input-field text-lg font-bold" />
           </div>
 
@@ -115,6 +122,23 @@ export default function LancamentoForm({ editData, onClose, categorias, contas, 
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Forma de Pagamento</label>
+            <select value={form.forma_pagamento} onChange={e => set('forma_pagamento', e.target.value)} className="input-field">
+              <option value="pix">PIX</option>
+              <option value="dinheiro">Dinheiro</option>
+              <option value="boleto">Boleto</option>
+              <option value="cartao_credito">Cartão Crédito</option>
+              <option value="cartao_debito">Cartão Débito</option>
+              <option value="transferencia">Transferência</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-1.5">Observações</label>
+            <textarea value={form.observacoes} onChange={e => set('observacoes', e.target.value)} rows={2} className="input-field resize-none" placeholder="Anotações opcionais..." />
+          </div>
+
           <div className="flex gap-2">
             {(['pendente', 'pago'] as const).map(s => (
               <button key={s} onClick={() => set('status', s)} className={cn('flex-1 py-2 rounded-xl text-sm font-medium border transition-all', form.status === s ? (s === 'pago' ? 'badge-pago' : 'badge-pendente') : 'text-slate-400 border-[var(--color-dark-border)]')}>
@@ -125,7 +149,10 @@ export default function LancamentoForm({ editData, onClose, categorias, contas, 
 
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 py-3 rounded-xl text-sm font-medium text-slate-400 border border-[var(--color-dark-border)] hover:bg-[var(--color-dark-hover)]">Cancelar</button>
-            <button onClick={handleSave} className="btn-primary flex-1 py-3">{editData ? 'Salvar' : 'Criar'}</button>
+            <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {saving ? 'Salvando...' : editData ? 'Salvar' : 'Criar'}
+            </button>
           </div>
         </div>
       </motion.div>
