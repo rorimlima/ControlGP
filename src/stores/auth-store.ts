@@ -170,6 +170,7 @@ export const useAuthStore = create<AuthState>()(
         try { await clearAllLocalData(); } catch (e) { console.error('[SignOut] Failed to clear local data:', e); }
         // Clear user tracking
         localStorage.removeItem('cgp_last_user_id');
+        localStorage.removeItem('cgp_sync_owner');
         // Sign out from Supabase
         await supabase.auth.signOut();
         set({ user: null, session: null, profile: null, isAuthenticated: false });
