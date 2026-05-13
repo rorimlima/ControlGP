@@ -100,23 +100,33 @@ export const useAuthStore = create<AuthState>()(
       signIn: async (email, password) => {
         set({ isLoading: true });
         try {
-          // Sign out first to ensure clean anon state for authorization check
-          await supabase.auth.signOut();
+          const cleanEmail = email.toLowerCase().trim();
 
-          // Check authorization as anon (no session = anon role)
+          // Sign in first
+          const { data, error } = await supabase.auth.signInWithPassword({ 
+            email: cleanEmail, 
+            password 
+          });
+          
+          if (error) return { error: error.message };
+
+          // Now check authorization as the authenticated user
           const { data: authData, error: checkErr } = await supabase
             .from('usuarios_autorizados')
             .select('status')
-            .eq('email', email.toLowerCase().trim())
+            .eq('email', cleanEmail)
             .single();
 
           if (checkErr || !authData || authData.status !== 'ativo') {
-            set({ isAuthorized: false });
+            await supabase.auth.signOut();
+            set({ 
+              isAuthorized: false, 
+              isAuthenticated: false, 
+              user: null, 
+              session: null 
+            });
             return { error: 'ACCESS_DENIED' };
           }
-
-          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) return { error: error.message };
           
           set({ 
             user: data.user,
