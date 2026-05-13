@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Plus, Users, Edit3, Trash2, Printer, Download, Loader2, Check, X, Search, Phone, Mail } from 'lucide-react';
-import { db, type LocalPessoa } from '@/lib/database';
+import { Plus, Users, Edit3, Trash2, Printer, Download, Loader2, Check, X, Search, Phone, Mail, Eye, TrendingUp, TrendingDown, FileText, Calendar, CreditCard, Building2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { db, type LocalPessoa, type LocalLancamento } from '@/lib/database';
+import { formatCurrency } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import { crudInsert, crudUpdate, crudDelete, exportToCSV, printTable } from '@/lib/crud-engine';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ export default function PessoasPage() {
   const [editData, setEditData] = useState<LocalPessoa | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [viewDetails, setViewDetails] = useState<LocalPessoa | null>(null);
 
   const filtered = useMemo(() => {
     if (!search) return pessoas;
@@ -93,27 +95,32 @@ export default function PessoasPage() {
             <p className="text-slate-400">Nenhuma pessoa cadastrada</p>
           </div>
         ) : filtered.map((p, i) => (
-          <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="card p-4 group">
-            <div className="flex items-center justify-between mb-2">
+          <motion.div key={p.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="card p-4 group hover:border-blue-500/20 transition-all">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-5 h-5 text-blue-400" />
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-base font-bold text-blue-400">{p.nome.charAt(0).toUpperCase()}</span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{p.nome}</p>
-                  <p className="text-xs text-slate-500 truncate">{p.cpf_cnpj || p.email || '—'}</p>
+                  <p className="text-sm font-bold text-white truncate">{p.nome}</p>
+                  <p className="text-xs text-slate-500 truncate">{p.cpf_cnpj || p.email || p.telefone || '—'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-                <button onClick={() => { setEditData(p); setShowForm(true); }} className="p-1.5 rounded-lg text-slate-400 hover:bg-[var(--color-dark-hover)]"><Edit3 className="w-3.5 h-3.5" /></button>
-                <button onClick={() => setDeleteConfirm(p.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={() => setViewDetails(p)} className="p-1.5 rounded-lg text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-all" title="Ver ficha"><Eye className="w-3.5 h-3.5" /></button>
+                <button onClick={() => { setEditData(p); setShowForm(true); }} className="p-1.5 rounded-lg text-slate-400 hover:bg-[var(--color-dark-hover)] transition-all" title="Editar"><Edit3 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setDeleteConfirm(p.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-all" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
+            {/* Info row */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn('px-2 py-0.5 rounded-lg text-[11px] font-medium border', TIPO_COLORS[p.tipo])}>{TIPO_LABELS[p.tipo]}</span>
-              {p.telefone && <span className="flex items-center gap-1 text-xs text-slate-500"><Phone className="w-3 h-3" /> {p.telefone}</span>}
-              {p.pix_chave && <span className="text-xs text-slate-500 truncate">PIX: {p.pix_chave}</span>}
+              <span className={cn('px-2 py-0.5 rounded-lg text-[11px] font-semibold border', TIPO_COLORS[p.tipo])}>{TIPO_LABELS[p.tipo]}</span>
+              {p.telefone && <span className="flex items-center gap-1 text-xs text-slate-500"><Phone className="w-3 h-3" />{p.telefone}</span>}
+              {p.banco && <span className="flex items-center gap-1 text-xs text-slate-500"><Building2 className="w-3 h-3" />{p.banco}</span>}
+              {p.pix_chave && <span className="text-xs text-slate-500 truncate max-w-[120px]">PIX: {p.pix_chave}</span>}
             </div>
+            {p.observacoes && <p className="mt-2 text-xs text-slate-600 truncate">{p.observacoes}</p>}
           </motion.div>
         ))}
       </div>
@@ -135,6 +142,9 @@ export default function PessoasPage() {
 
       <AnimatePresence>
         {showForm && <PessoaForm editData={editData} onClose={() => { setShowForm(false); setEditData(null); }} userId={user!.id} tenantId={profile!.tenant_id} onFeedback={showFeedback} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {viewDetails && <PessoaDetalhesModal pessoa={viewDetails} onClose={() => setViewDetails(null)} onEdit={() => { setEditData(viewDetails); setViewDetails(null); setShowForm(true); }} />}
       </AnimatePresence>
     </motion.div>
   );
@@ -205,6 +215,158 @@ function PessoaForm({ editData, onClose, userId, tenantId, onFeedback }: {
           <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null} {saving ? 'Salvando...' : editData ? 'Salvar' : 'Criar'}
           </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function PessoaDetalhesModal({ pessoa, onClose, onEdit }: {
+  pessoa: LocalPessoa; onClose: () => void; onEdit: () => void;
+}) {
+  const [tab, setTab] = useState<'ficha' | 'historico'>('ficha');
+  const rawLanc = useLiveQuery(
+    () => db.lancamentos.where('pessoa_id').equals(pessoa.id).toArray(),
+    [pessoa.id]
+  ) || [];
+
+  const lancamentos = useMemo(() => rawLanc.filter(l => !l.deleted_at), [rawLanc]);
+
+  const recebido = useMemo(() => lancamentos.filter(l => l.tipo === 'receita' && l.status === 'pago').reduce((s, l) => s + l.valor, 0), [lancamentos]);
+  const pago = useMemo(() => lancamentos.filter(l => l.tipo === 'despesa' && l.status === 'pago').reduce((s, l) => s + l.valor, 0), [lancamentos]);
+  const pendente = useMemo(() => lancamentos.filter(l => l.status === 'pendente').reduce((s, l) => s + l.valor, 0), [lancamentos]);
+
+  const sorted = useMemo(() => [...lancamentos].sort((a, b) => b.data_competencia.localeCompare(a.data_competencia)), [lancamentos]);
+
+  const statusBadge = (l: LocalLancamento) => {
+    const map: Record<string, string> = {
+      pago: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+      pendente: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+      vencido: 'text-red-400 bg-red-500/10 border-red-500/20',
+      cancelado: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
+    };
+    return map[l.status] || map.cancelado;
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+        className="card w-full max-w-lg rounded-2xl overflow-hidden flex flex-col" style={{ maxHeight: '88vh' }}>
+
+        {/* Header */}
+        <div className="p-5 border-b border-[var(--color-dark-border)] flex-shrink-0 bg-gradient-to-r from-blue-500/10 to-transparent">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/30 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl font-bold text-blue-300">{pessoa.nome.charAt(0).toUpperCase()}</span>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">{pessoa.nome}</h2>
+                <span className={cn('px-2 py-0.5 rounded-lg text-[11px] font-semibold border', TIPO_COLORS[pessoa.tipo])}>{TIPO_LABELS[pessoa.tipo]}</span>
+              </div>
+            </div>
+            <div className="flex gap-1.5">
+              <button onClick={onEdit} className="px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-semibold transition-all">Editar</button>
+              <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-[var(--color-dark-hover)] transition-all"><X className="w-4 h-4" /></button>
+            </div>
+          </div>
+
+          {/* KPI strip */}
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="rounded-xl p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-center">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Recebido</p>
+              <p className="text-sm font-bold text-emerald-400">{formatCurrency(recebido)}</p>
+            </div>
+            <div className="rounded-xl p-2.5 bg-red-500/10 border border-red-500/20 text-center">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Pago</p>
+              <p className="text-sm font-bold text-red-400">{formatCurrency(pago)}</p>
+            </div>
+            <div className="rounded-xl p-2.5 bg-amber-500/10 border border-amber-500/20 text-center">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Pendente</p>
+              <p className="text-sm font-bold text-amber-400">{formatCurrency(pendente)}</p>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 mt-4 bg-[var(--color-dark-hover)] rounded-xl p-1">
+            {(['ficha', 'historico'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className={cn('flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize',
+                  tab === t ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white')}>
+                {t === 'ficha' ? '📋 Ficha' : '📊 Histórico'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 p-5">
+          {tab === 'ficha' ? (
+            <div className="space-y-3">
+              {[
+                { label: 'CPF/CNPJ', value: pessoa.cpf_cnpj, icon: <FileText className="w-4 h-4 text-slate-400" /> },
+                { label: 'Email', value: pessoa.email, icon: <Mail className="w-4 h-4 text-slate-400" /> },
+                { label: 'Telefone', value: pessoa.telefone, icon: <Phone className="w-4 h-4 text-slate-400" /> },
+                { label: 'Banco', value: pessoa.banco, icon: <Building2 className="w-4 h-4 text-slate-400" /> },
+                { label: 'Chave PIX', value: pessoa.pix_chave, icon: <CreditCard className="w-4 h-4 text-slate-400" /> },
+                { label: 'Observações', value: pessoa.observacoes, icon: <FileText className="w-4 h-4 text-slate-400" /> },
+              ].filter(f => f.value).map(f => (
+                <div key={f.label} className="flex items-start gap-3 p-3 rounded-xl bg-[var(--color-dark-hover)] border border-[var(--color-dark-border)]">
+                  <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">{f.icon}</div>
+                  <div>
+                    <p className="text-[11px] text-slate-500 uppercase tracking-wide">{f.label}</p>
+                    <p className="text-sm font-medium text-white mt-0.5">{f.value}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-dark-hover)] border border-[var(--color-dark-border)]">
+                <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><Calendar className="w-4 h-4 text-slate-400" /></div>
+                <div>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wide">Cadastrado em</p>
+                  <p className="text-sm font-medium text-white mt-0.5">{new Date(pessoa.created_at).toLocaleDateString('pt-BR')}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-dark-hover)] border border-[var(--color-dark-border)]">
+                <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0"><TrendingUp className="w-4 h-4 text-slate-400" /></div>
+                <div>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wide">Total de lançamentos</p>
+                  <p className="text-sm font-medium text-white mt-0.5">{lancamentos.length} lançamento(s)</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sorted.length === 0 ? (
+                <div className="text-center py-10">
+                  <FileText className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Nenhum lançamento para esta pessoa</p>
+                </div>
+              ) : sorted.map(l => (
+                <div key={l.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-dark-hover)] border border-[var(--color-dark-border)] hover:border-blue-500/20 transition-all">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
+                      l.tipo === 'receita' ? 'bg-emerald-500/10' : 'bg-red-500/10')}>
+                      {l.tipo === 'receita'
+                        ? <ArrowUpCircle className="w-4 h-4 text-emerald-400" />
+                        : <ArrowDownCircle className="w-4 h-4 text-red-400" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{l.descricao}</p>
+                      <p className="text-xs text-slate-500">{new Date(l.data_competencia + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <p className={cn('text-sm font-bold', l.tipo === 'receita' ? 'text-emerald-400' : 'text-red-400')}>
+                      {l.tipo === 'receita' ? '+' : '-'}{formatCurrency(l.valor)}
+                    </p>
+                    <span className={cn('text-[10px] px-1.5 py-0.5 rounded border font-medium', statusBadge(l))}>{l.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
