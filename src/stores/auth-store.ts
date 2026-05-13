@@ -52,7 +52,11 @@ export const useAuthStore = create<AuthState>()(
           
           if (session?.user) {
             set({ user: session.user, session, isAuthenticated: true });
-            await get().fetchProfile();
+            const fetchedProfile = await get().fetchProfile();
+            // If we couldn't fetch a profile AND we don't have a cached one, we can't proceed
+            if (!fetchedProfile && !get().profile) {
+              set({ user: null, session: null, isAuthenticated: false, profile: null });
+            }
           } else {
             set({ user: null, session: null, isAuthenticated: false, profile: null });
           }
@@ -211,6 +215,9 @@ export const useAuthStore = create<AuthState>()(
       name: 'cgp-auth',
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
+        profile: state.profile,
+        user: state.user,
+        session: state.session,
       }),
     }
   )

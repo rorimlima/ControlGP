@@ -7,8 +7,8 @@ export default function AuthLayout() {
   const { isAuthenticated, isLoading, profile } = useAuthStore();
 
   if (isLoading) return null;
-  if (isAuthenticated) {
-    const dest = profile?.role === 'master' ? '/admin' : '/dashboard';
+  if (isAuthenticated && profile) {
+    const dest = profile.role === 'master' ? '/admin' : '/dashboard';
     return <Navigate to={dest} replace />;
   }
 
