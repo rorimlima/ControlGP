@@ -87,7 +87,20 @@ async function callAdminFunction(action: string, payload: Record<string, string>
     body: { action, ...payload },
   });
 
-  if (res.error) throw new Error(res.error.message || 'Erro na função');
+  // Extract detailed error from edge function response
+  if (res.error) {
+    // Try to get the actual error message from the response body
+    let detail = '';
+    try {
+      // res.error.context may contain the Response object
+      const ctx = (res.error as any).context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        detail = body?.error || '';
+      }
+    } catch { /* ignore parse errors */ }
+    throw new Error(detail || res.error.message || 'Erro na função');
+  }
   if (res.data?.error) throw new Error(res.data.error);
   return res.data;
 }
