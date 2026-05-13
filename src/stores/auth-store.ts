@@ -12,6 +12,10 @@ export interface Profile {
   avatar_url?: string;
   role: 'master' | 'user';
   theme: string;
+  moeda: string;
+  locale: string;
+  timezone: string;
+  notifications_enabled: boolean;
   subscription_status: 'active' | 'expired' | 'trial';
   payment_type: 'mensal' | 'anual' | 'brinde';
   expires_at: string | null;
