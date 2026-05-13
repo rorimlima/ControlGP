@@ -75,13 +75,22 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const cleanEmail = email.toLowerCase().trim();
+          console.log('[Auth] Signing in:', cleanEmail);
 
           const { data, error } = await supabase.auth.signInWithPassword({ 
             email: cleanEmail, 
             password 
           });
           
-          if (error) return { error: error.message };
+          if (error) {
+            console.error('[Auth] SignIn error:', error.message);
+            return { error: error.message };
+          }
+
+          console.log('[Auth] Auth OK, user:', data.user.id);
+
+          // Set session immediately so RLS policies work
+          set({ user: data.user, session: data.session, isAuthenticated: true });
 
           // Fetch profile to check role & subscription
           const { data: profileData, error: profileErr } = await supabase
@@ -90,19 +99,24 @@ export const useAuthStore = create<AuthState>()(
             .eq('user_id', data.user.id)
             .single();
 
-          if (profileErr || !profileData) {
+          if (profileErr) {
+            console.error('[Auth] Profile fetch error:', profileErr.message, profileErr.code);
+          }
+
+          if (!profileData) {
+            console.error('[Auth] No profile found for user:', data.user.id);
             await supabase.auth.signOut();
-            set({ isAuthenticated: false, user: null, session: null });
+            set({ isAuthenticated: false, user: null, session: null, profile: null });
             return { error: 'PROFILE_NOT_FOUND' };
           }
 
           const profile = profileData as Profile;
+          console.log('[Auth] Profile loaded, role:', profile.role, 'payment:', profile.payment_type);
 
           // Check subscription expiration (skip for 'brinde')
           if (profile.payment_type !== 'brinde' && profile.expires_at) {
             const expiresAt = new Date(profile.expires_at);
             if (expiresAt < new Date()) {
-              // Update status in DB
               await supabase
                 .from('profiles')
                 .update({ subscription_status: 'expired' })
@@ -119,18 +133,19 @@ export const useAuthStore = create<AuthState>()(
             .eq('email', cleanEmail)
             .single();
 
-          if (checkErr || !authData || authData.status !== 'ativo') {
+          if (checkErr) {
+            console.error('[Auth] Authorization check error:', checkErr.message);
+          }
+
+          if (!authData || authData.status !== 'ativo') {
+            console.error('[Auth] Access denied for:', cleanEmail, 'status:', authData?.status);
             await supabase.auth.signOut();
-            set({ isAuthenticated: false, user: null, session: null });
+            set({ isAuthenticated: false, user: null, session: null, profile: null });
             return { error: 'ACCESS_DENIED' };
           }
 
-          set({ 
-            user: data.user,
-            session: data.session,
-            profile,
-            isAuthenticated: true,
-          });
+          set({ profile });
+          console.log('[Auth] Login complete → role:', profile.role);
           
           return { error: null, role: profile.role };
         } finally {
