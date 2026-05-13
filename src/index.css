@@ -436,33 +436,98 @@ select.input-field {
   z-index: 39;
 }
 
-/* ─── LIGHT THEME ──────────────────────────────────── */
+/* ─── LIGHT THEME — Corporativo refinado ─────────── */
 .light {
-  --color-dark-bg:      #f0f4fa;
+  /* Fundos suaves — sem brancos puros */
+  --color-dark-bg:      #f5f7fa;
   --color-dark-surface: #ffffff;
   --color-dark-card:    #ffffff;
-  --color-dark-border:  #dde3ef;
-  --color-dark-hover:   #eef1f8;
-  --color-dark-text:    #0f172a;
+  --color-dark-border:  #e4e8f0;
+  --color-dark-hover:   #f0f3f8;
+  /* Texto: azul-acinzentado escuro — muito mais legível que preto puro */
+  --color-dark-text:    #1e2a3b;
   --color-dark-muted:   #64748b;
 }
+
+/* Glass no light */
 .light .glass {
-  background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(0, 0, 0, 0.07);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.06);
 }
 .light .glass-light {
-  background: rgba(255, 255, 255, 0.7);
-  border-color: rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(0, 0, 0, 0.05);
 }
+
+/* Body no light — fundo acinzentado claro */
+.light body {
+  background: #f5f7fa;
+}
+
+/* Cards no light */
+.light .card {
+  background: #ffffff;
+  border-color: #e4e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+.light .card:hover {
+  border-color: #c7d2e8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Inputs no light */
 .light .input-field {
-  background: rgba(248, 250, 252, 0.9);
-  border-color: var(--color-dark-border);
-  color: var(--color-dark-text);
+  background: #f8fafc;
+  border-color: #dde3ef;
+  color: #1e2a3b;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.light .input-field:focus {
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
 }
 .light .input-field::placeholder {
   color: #94a3b8;
 }
+.light select.input-field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+}
+
+/* Skeleton no light */
 .light .skeleton {
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background: linear-gradient(90deg, #edf0f7 25%, #f4f6fb 50%, #edf0f7 75%);
   background-size: 200% 100%;
 }
+
+/* Sidebar no light */
+.light aside.glass {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: #e4e8f0;
+}
+
+/* Navbar no light */
+.light header.glass {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: #e4e8f0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* Badge no light */
+.light .badge-pago      { background: #d1fae5; color: #059669; border-color: #a7f3d0; }
+.light .badge-pendente  { background: #fef3c7; color: #d97706; border-color: #fde68a; }
+.light .badge-vencido   { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+.light .badge-cancelado { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+
+/* Textos e ícones — garantir contraste no light */
+.light .text-slate-400  { color: #64748b !important; }
+.light .text-slate-500  { color: #4b5563 !important; }
+.light .text-slate-600  { color: #374151 !important; }
+.light .text-white      { color: #1e2a3b !important; }
+
+/* Botão primário — mantém o mesmo */
+.light .btn-primary { box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25); }
+
+/* Hover states no light */
+.light .hover\:bg-\[var\(--color-dark-hover\)\]:hover { background: #f0f3f8 !important; }
