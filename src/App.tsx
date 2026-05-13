@@ -10,7 +10,6 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 // Lazy loaded pages
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
-const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'));
 const AccessDeniedPage = lazy(() => import('@/features/auth/AccessDeniedPage'));
 const AdminPage = lazy(() => import('@/features/admin/AdminPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
@@ -73,7 +72,6 @@ export default function App() {
         {/* Auth Routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/registro" element={<RegisterPage />} />
         </Route>
 
         {/* Access Denied */}

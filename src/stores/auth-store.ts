@@ -24,7 +24,6 @@ interface AuthState {
 
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (data: { nome: string; email: string; telefone: string; password: string }) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   checkAuthorization: (email: string) => Promise<boolean>;
@@ -133,35 +132,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signUp: async ({ nome, email, telefone, password }) => {
-        set({ isLoading: true });
-        try {
-          // Check authorization before signup
-          const { data: authData } = await supabase
-            .from('usuarios_autorizados')
-            .select('status')
-            .eq('email', email.toLowerCase().trim())
-            .single();
-
-          if (!authData || authData.status !== 'ativo') {
-            set({ isAuthorized: false });
-            return { error: 'ACCESS_DENIED' };
-          }
-
-          const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: { nome, telefone },
-            },
-          });
-          if (error) return { error: error.message };
-          set({ isAuthorized: true });
-          return { error: null };
-        } finally {
-          set({ isLoading: false });
-        }
-      },
 
       signOut: async () => {
         await supabase.auth.signOut();

@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
 
 const loginSchema = z.object({
@@ -56,13 +57,17 @@ export default function LoginPage() {
     setError(null);
     const result = await signIn(data.email, data.password);
     if (result.error) {
-      if (result.error === 'ACCESS_DENIED') { navigate('/acesso-negado'); return; }
-      setError(
-        result.error === 'Invalid login credentials'
+      if (result.error === 'ACCESS_DENIED') { 
+        navigate('/acesso-negado'); 
+        return; 
+      }
+      const errorMsg = result.error === 'Invalid login credentials'
           ? 'Email ou senha incorretos'
-          : 'Erro ao entrar. Tente novamente.'
-      );
+          : 'Erro ao entrar. Tente novamente.';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } else {
+      toast.success('Login realizado com sucesso!');
       navigate('/dashboard', { replace: true });
     }
   };
@@ -178,21 +183,6 @@ export default function LoginPage() {
           }
         </button>
       </form>
-
-      <p style={{
-        textAlign: 'center',
-        fontSize: '0.8125rem',
-        color: '#4a5e7a',
-        marginTop: '1.25rem',
-      }}>
-        Não tem conta?{' '}
-        <Link
-          to="/registro"
-          style={{ color: '#60a5fa', fontWeight: 600, textDecoration: 'none' }}
-        >
-          Criar conta
-        </Link>
-      </p>
     </div>
   );
 }
