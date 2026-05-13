@@ -71,7 +71,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-1">
+      <nav className="flex-1 py-2 px-2.5 space-y-0.5 overflow-y-auto">
         {allNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -81,7 +81,7 @@ export default function Sidebar() {
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative',
+                'flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 group relative',
                 isActive
                   ? 'text-white bg-blue-600/15 border border-blue-500/20'
                   : 'text-slate-400 hover:text-white hover:bg-[var(--color-dark-hover)]'
@@ -97,7 +97,7 @@ export default function Sidebar() {
 
               <Icon
                 className={cn(
-                  'w-5 h-5 flex-shrink-0 transition-colors',
+                  'w-4 h-4 flex-shrink-0 transition-colors',
                   isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'
                 )}
               />
@@ -120,16 +120,16 @@ export default function Sidebar() {
       </nav>
 
       {/* Collapse Toggle */}
-      <div className="p-3 border-t border-[var(--color-dark-border)]">
+      <div className="p-2 border-t border-[var(--color-dark-border)]">
         <button
           onClick={toggleSidebarCollapse}
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-[var(--color-dark-hover)] transition-all text-sm"
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-[var(--color-dark-hover)] transition-all text-xs"
         >
           {sidebarCollapsed ? (
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-3.5 h-3.5" />
           ) : (
             <>
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
               <span>Recolher</span>
             </>
           )}

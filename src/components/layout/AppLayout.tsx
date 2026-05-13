@@ -9,15 +9,21 @@ import { useAppStore } from '@/stores/app-store';
 export default function AppLayout() {
   const { isMobile, sidebarOpen, sidebarCollapsed, toggleSidebar } = useAppStore();
 
+  const sidebarWidth = isMobile
+    ? 0
+    : sidebarCollapsed
+    ? 'var(--spacing-sidebar-collapsed)'
+    : 'var(--spacing-sidebar)';
+
   return (
     <div
       className="min-h-screen gradient-dark gradient-mesh"
       style={{ overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}
     >
-      {/* Sidebar — desktop only */}
+      {/* Sidebar — desktop only, fixed on left */}
       {!isMobile && <Sidebar />}
 
-      {/* Mobile sidebar overlay — closes on tap outside */}
+      {/* Mobile sidebar: overlay + drawer */}
       <AnimatePresence>
         {isMobile && sidebarOpen && (
           <>
@@ -44,29 +50,31 @@ export default function AppLayout() {
         )}
       </AnimatePresence>
 
-      {/* Navbar */}
+      {/* Navbar — fixed top, respects sidebar width via calc in Navbar.tsx */}
       <Navbar />
 
-      {/* Main Content */}
+      {/* Main Content area */}
       <main
         className="main-content transition-all duration-300"
         style={{
           paddingTop: 'var(--spacing-navbar)',
-          marginLeft: isMobile
-            ? 0
-            : sidebarCollapsed
+          // Push content to the right of sidebar
+          marginLeft: isMobile ? 0 : sidebarCollapsed
             ? 'var(--spacing-sidebar-collapsed)'
             : 'var(--spacing-sidebar)',
-          // Prevent content from overflowing on mobile
+          // Constrain width so content never overflows right edge
           width: isMobile
             ? '100%'
-            : undefined,
+            : sidebarCollapsed
+            ? 'calc(100vw - var(--spacing-sidebar-collapsed))'
+            : 'calc(100vw - var(--spacing-sidebar))',
+          minWidth: 0,
           overflowX: 'hidden',
         }}
       >
         <div
-          className="p-3 md:p-6"
-          style={{ maxWidth: '1400px', margin: '0 auto', overflowX: 'hidden' }}
+          className="p-3 md:p-5"
+          style={{ maxWidth: '1440px', margin: '0 auto', overflowX: 'hidden' }}
         >
           <Outlet />
         </div>
