@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Plus, CreditCard, Edit3, Trash2, Printer, Download, Loader2, Check, X } from 'lucide-react';
-import { db, type LocalCartao } from '@/lib/database';
+import { Plus, CreditCard, Edit3, Trash2, Printer, Download, Loader2, Check, X, ChevronRight, FileText } from 'lucide-react';
+import { db, type LocalCartao, type LocalLancamento } from '@/lib/database';
 import { useAuthStore } from '@/stores/auth-store';
 import { crudInsert, crudUpdate, crudDelete, exportToCSV, printTable } from '@/lib/crud-engine';
 import { formatCurrency, cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ export default function CartoesPage() {
   const cartoes = useMemo(() => raw.filter(c => !c.deleted_at), [raw]);
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<LocalCartao | null>(null);
+  const [viewDetails, setViewDetails] = useState<LocalCartao | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -73,7 +74,7 @@ export default function CartoesPage() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-3 page-header">
         <div><h1 className="text-xl md:text-2xl font-bold text-white">Cartões</h1><p className="text-sm text-slate-400 mt-1">{cartoes.length} cartão(ões)</p></div>
         <div className="flex items-center gap-2">
           <button onClick={handlePrint} className="p-2.5 rounded-xl border border-[var(--color-dark-border)] text-slate-400 hover:text-white hover:bg-[var(--color-dark-hover)] transition-all" title="Imprimir"><Printer className="w-4 h-4" /></button>
@@ -90,7 +91,7 @@ export default function CartoesPage() {
             <p className="text-slate-400">Adicione seu primeiro cartão</p>
           </div>
         ) : cartoes.map((c, i) => (
-          <motion.div key={c.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="relative overflow-hidden rounded-2xl p-6 group" style={{ background: `linear-gradient(135deg, ${c.cor}cc 0%, ${c.cor}88 100%)` }}>
+          <motion.div key={c.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="relative overflow-hidden rounded-2xl p-6 group flex flex-col" style={{ background: `linear-gradient(135deg, ${c.cor}cc 0%, ${c.cor}88 100%)` }}>
             <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2" />
             <div className="flex items-center justify-between mb-6">
               <CreditCard className="w-8 h-8 text-white/80" />
@@ -105,9 +106,16 @@ export default function CartoesPage() {
               <div><p className="text-white/50 text-xs">Limite</p><p className="text-white font-semibold">{formatCurrency(c.limite)}</p></div>
               <div className="text-right"><p className="text-white/50 text-xs">Disponível</p><p className="text-white font-semibold">{formatCurrency(c.limite_disponivel)}</p></div>
             </div>
-            <div className="mt-3 flex gap-4 text-xs text-white/50">
+            <div className="mt-3 flex gap-4 text-xs text-white/50 mb-4">
               <span>Fecha dia {c.dia_fechamento}</span>
               <span>Vence dia {c.dia_vencimento}</span>
+            </div>
+            
+            <div className="mt-auto pt-4 border-t border-white/10 flex justify-between items-center relative z-10">
+              <span className="text-[11px] text-white/60 font-medium tracking-wide uppercase">Faturas</span>
+              <button onClick={() => setViewDetails(c)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-xs font-semibold text-white">
+                Detalhes <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </motion.div>
         ))}
@@ -133,6 +141,13 @@ export default function CartoesPage() {
       <AnimatePresence>
         {showForm && (
           <CartaoForm editData={editData} onClose={() => { setShowForm(false); setEditData(null); }} userId={user!.id} tenantId={profile!.tenant_id} onFeedback={showFeedback} />
+        )}
+      </AnimatePresence>
+
+      {/* Details Modal */}
+      <AnimatePresence>
+        {viewDetails && (
+          <CartaoDetalhesModal cartao={viewDetails} onClose={() => setViewDetails(null)} />
         )}
       </AnimatePresence>
     </motion.div>
@@ -209,6 +224,92 @@ function CartaoForm({ editData, onClose, userId, tenantId, onFeedback }: {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {saving ? 'Salvando...' : editData ? 'Salvar' : 'Criar'}
           </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function CartaoDetalhesModal({ cartao, onClose }: { cartao: LocalCartao; onClose: () => void }) {
+  const rawLancamentos = useLiveQuery(
+    () => db.lancamentos
+      .where('cartao_id')
+      .equals(cartao.id)
+      .toArray(),
+    [cartao.id]
+  ) || [];
+
+  const faturas = useMemo(() => {
+    // Only pendente (not paid) and not deleted
+    const valid = rawLancamentos.filter(l => !l.deleted_at && l.status === 'pendente');
+    
+    // Group by YYYY-MM
+    const groups: Record<string, number> = {};
+    valid.forEach(l => {
+      // Assuming data_vencimento is YYYY-MM-DD
+      const monthYear = l.data_vencimento ? l.data_vencimento.substring(0, 7) : 'S/ Data';
+      groups[monthYear] = (groups[monthYear] || 0) + l.valor;
+    });
+
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([mes, valor]) => {
+        // Format to MM/YYYY
+        if (mes.length === 7) {
+          const [y, m] = mes.split('-');
+          return { label: `${m}/${y}`, valor };
+        }
+        return { label: mes, valor };
+      });
+  }, [rawLancamentos]);
+
+  const total = faturas.reduce((acc, f) => acc + f.valor, 0);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="card w-full max-w-sm rounded-2xl p-0 overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="p-5 border-b border-[var(--color-dark-border)] flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${cartao.cor}1a 0%, transparent 100%)` }}>
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <CreditCard className="w-5 h-5" style={{ color: cartao.cor }} />
+              {cartao.nome}
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">Faturas pendentes (próximos meses)</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-[var(--color-dark-hover)]"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-5 overflow-y-auto">
+          {faturas.length === 0 ? (
+            <div className="text-center py-8">
+              <Check className="w-10 h-10 text-emerald-500/50 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">Nenhuma fatura pendente</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {faturas.map((f, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-dark-hover)] border border-[var(--color-dark-border)]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4 text-slate-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Vencimento {f.label}</p>
+                      <p className="text-xs text-slate-500">Fatura agrupada</p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-bold text-red-400">
+                    {formatCurrency(f.valor)}
+                  </p>
+                </div>
+              ))}
+              
+              <div className="mt-4 pt-4 border-t border-[var(--color-dark-border)] flex justify-between items-center">
+                <p className="text-sm font-semibold text-slate-300">Total Previsto</p>
+                <p className="text-base font-bold text-red-400">{formatCurrency(total)}</p>
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
