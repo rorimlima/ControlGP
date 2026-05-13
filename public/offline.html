@@ -3,28 +3,154 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
   <title>Control GP — Offline</title>
+  <link rel="icon" href="/icons/icon-72.png" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e1a; color: #f1f5f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .container { text-align: center; padding: 2rem; }
-    .icon { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
-    .icon svg { width: 32px; height: 32px; color: white; }
-    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-    p { color: #94a3b8; font-size: 0.875rem; max-width: 320px; margin: 0 auto 1.5rem; }
-    button { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 14px; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #0a0e1a;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 380px;
+      width: 100%;
+    }
+
+    .icon-wrap {
+      width: 80px;
+      height: 80px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #1e40af, #7c3aed);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 2rem;
+      box-shadow: 0 0 40px rgba(59,130,246,0.3);
+    }
+
+    .icon-wrap svg {
+      width: 40px;
+      height: 40px;
+      color: white;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
+    }
+
+    p {
+      color: #64748b;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.2);
+      color: #10b981;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-bottom: 2rem;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      border: none;
+      padding: 0.875rem 1.75rem;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 0.9375rem;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+    }
+
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37,99,235,0.45); }
+    .btn:active { transform: translateY(0); }
+
+    .footer {
+      margin-top: 3rem;
+      font-size: 0.75rem;
+      color: #334155;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="icon">
+    <div class="icon-wrap">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728M5.636 18.364a9 9 0 010-12.728M12 12v.01" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
       </svg>
     </div>
-    <h1>Você está offline</h1>
-    <p>Sem conexão com a internet. Seus dados estão salvos localmente e serão sincronizados quando a conexão voltar.</p>
-    <button onclick="location.reload()">Tentar novamente</button>
+
+    <h1>Sem conexão</h1>
+    <p>Seus dados estão salvos localmente e serão sincronizados automaticamente assim que a internet voltar.</p>
+
+    <div class="status">
+      <div class="dot"></div>
+      Dados locais disponíveis
+    </div>
+
+    <button class="btn" onclick="tryReconnect()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Tentar novamente
+    </button>
+
+    <p class="footer">Control GP &copy; 2025 &mdash; Gestão Financeira Pessoal</p>
   </div>
+
+  <script>
+    async function tryReconnect() {
+      try {
+        const res = await fetch('/manifest.json', { cache: 'no-store' });
+        if (res.ok) {
+          window.location.href = '/';
+        } else {
+          alert('Ainda sem conexão. Tente novamente em breve.');
+        }
+      } catch {
+        alert('Ainda sem conexão. Seus dados estão seguros.');
+      }
+    }
+  </script>
 </body>
 </html>

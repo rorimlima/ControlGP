@@ -2,22 +2,101 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <!-- PWA Core -->
+    <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0f172a" />
-    <meta name="description" content="Control GP — Gestão Financeira Pessoal Inteligente. Controle suas finanças com segurança, offline-first e sincronização automática." />
-    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- SEO -->
+    <meta name="description" content="Control GP — Gestão Financeira Pessoal Inteligente. Controle lançamentos, cartões, contas e metas com sincronização automática e modo offline." />
+    <meta name="keywords" content="gestão financeira, controle financeiro, cartões, lançamentos, contas, metas, finanças pessoais" />
+    <meta name="author" content="Control GP" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Control GP — Gestão Financeira Pessoal" />
+    <meta property="og:description" content="Controle suas finanças com inteligência, offline e seguro." />
+    <meta property="og:image" content="/screenshots/screenshot-mobile.png" />
+    <meta property="og:url" content="https://control-gp.vercel.app" />
+    <meta property="og:locale" content="pt_BR" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Control GP — Gestão Financeira Pessoal" />
+    <meta name="twitter:description" content="Controle suas finanças com inteligência, offline e seguro." />
+    <meta name="twitter:image" content="/screenshots/screenshot-desktop.png" />
+
+    <!-- iOS / Apple -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Control GP" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Microsoft Tile (Edge/Windows) -->
+    <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
+    <meta name="msapplication-TileColor" content="#0f172a" />
+    <meta name="msapplication-config" content="none" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72.png" />
+    <link rel="shortcut icon" href="/icons/icon-96.png" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
     <title>Control GP — Gestão Financeira Pessoal</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/sw.js', { scope: '/' })
+            .then((reg) => {
+              console.log('[SW] Registrado com sucesso. Scope:', reg.scope);
+
+              // Notifica o SW para atualizar quando há nova versão
+              reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker?.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // Novo conteúdo disponível — atualiza silenciosamente
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              });
+            })
+            .catch((err) => console.warn('[SW] Falha no registro:', err));
+
+          // Recarrega a página quando o SW assumir o controle
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            window.location.reload();
+          });
+
+          // Periodic Background Sync (se suportado)
+          navigator.serviceWorker.ready.then((reg) => {
+            if ('periodicSync' in reg) {
+              reg.periodicSync
+                .register('cgp-periodic-sync', { minInterval: 24 * 60 * 60 * 1000 })
+                .catch(() => {}); // Silencia se não houver permissão
+            }
+          });
+        });
+      }
+    </script>
   </body>
 </html>

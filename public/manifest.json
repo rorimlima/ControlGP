@@ -1,17 +1,20 @@
 {
-  "id": "/",
-  "name": "Control GP",
-  "short_name": "CGP",
-  "description": "Gestão Financeira Pessoal Inteligente",
+  "id": "control-gp-app",
+  "name": "Control GP — Gestão Financeira",
+  "short_name": "Control GP",
+  "description": "Controle suas finanças pessoais com inteligência. Lançamentos, cartões, contas, metas e muito mais — com sincronização automática e modo offline.",
   "theme_color": "#0f172a",
   "background_color": "#0f172a",
   "display": "standalone",
-  "orientation": "portrait",
-  "start_url": "/",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "start_url": "/?source=pwa",
   "scope": "/",
-  "categories": ["finance", "productivity"],
   "lang": "pt-BR",
   "dir": "ltr",
+  "categories": ["finance", "productivity", "business"],
+  "prefer_related_applications": false,
+  "iarc_rating_id": "",
   "icons": [
     {
       "src": "/icons/icon-72.png",
@@ -74,19 +77,53 @@
       "purpose": "maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard com resumo financeiro no Control GP"
+    },
+    {
+      "src": "/screenshots/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Tela de Lançamentos no Control GP — versão desktop"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
-      "url": "/dashboard",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "description": "Ver resumo financeiro",
+      "url": "/dashboard?source=pwa-shortcut",
+      "icons": [
+        { "src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png" }
+      ]
     },
     {
       "name": "Novo Lançamento",
       "short_name": "Lançamento",
-      "url": "/lancamentos/novo",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "description": "Registrar novo lançamento financeiro",
+      "url": "/lancamentos?source=pwa-shortcut",
+      "icons": [
+        { "src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Cartões",
+      "short_name": "Cartões",
+      "description": "Gerenciar cartões de crédito",
+      "url": "/cartoes?source=pwa-shortcut",
+      "icons": [
+        { "src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png" }
+      ]
     }
   ],
-  "screenshots": []
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 480
+  }
 }
