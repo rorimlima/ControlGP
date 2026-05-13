@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Plus, Search, Shield, Trash2, ToggleLeft, ToggleRight,
   LogOut, Check, X, Mail, User, Phone, Crown, Edit2, KeyRound,
-  FileText, Loader2,
+  FileText, Loader2, Gift, Calendar, CreditCard,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth-store';
@@ -28,7 +28,7 @@ type ModalMode = 'create' | 'edit' | null;
 
 const ADMIN_EMAIL = 'onaeror@gmail.com';
 
-const EMPTY_FORM = { email: '', nome: '', cpf: '', telefone: '', plano: 'basico', observacoes: '' };
+const EMPTY_FORM = { email: '', nome: '', cpf: '', telefone: '', plano: 'basico', observacoes: '', payment_type: 'mensal', expires_at: '' };
 
 const planoColors: Record<string, string> = {
   basico: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
@@ -40,6 +40,12 @@ const statusColors: Record<string, string> = {
   ativo: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   inativo: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   bloqueado: 'bg-red-500/10 text-red-400 border-red-500/20',
+};
+
+const paymentColors: Record<string, string> = {
+  mensal: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+  anual: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+  brinde: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
 };
 
 // ─── CPF Formatting ──────────────────────────────────
@@ -133,6 +139,8 @@ export default function AdminPage() {
       telefone: u.telefone || '',
       plano: u.plano,
       observacoes: u.observacoes || '',
+      payment_type: 'mensal',
+      expires_at: '',
     });
     setEditingId(u.id);
     setModalMode('edit');
@@ -174,11 +182,13 @@ export default function AdminPage() {
       });
       if (dbErr) { setError(dbErr.message); return; }
 
-      // 2. Create auth user with password = first 6 CPF digits
+      // 2. Create auth user + profile via edge function
       const result = await callAdminFunction('create', {
         email: emailLower,
         cpf,
         nome: form.nome || '',
+        payment_type: form.payment_type || 'mensal',
+        expires_at: form.payment_type === 'brinde' ? '' : (form.expires_at || ''),
       });
 
       setSuccess(`✅ ${form.nome || emailLower} autorizado! Senha padrão: ${result.password_hint}`);
@@ -499,6 +509,38 @@ export default function AdminPage() {
                   <option value="enterprise">Enterprise</option>
                 </select>
               </div>
+
+              {/* Tipo de Pagamento */}
+              <div>
+                <label className="block text-sm text-slate-300 mb-1.5">Tipo de Acesso</label>
+                <div className="relative">
+                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <select value={form.payment_type} onChange={e => set('payment_type', e.target.value)} className="input-field pl-10">
+                    <option value="mensal">Mensal</option>
+                    <option value="anual">Anual</option>
+                    <option value="brinde">🎁 Brinde (Eterno)</option>
+                  </select>
+                </div>
+                {form.payment_type === 'brinde' && (
+                  <p className="text-xs mt-1 text-purple-400">✦ Acesso vitalício — sem data de expiração</p>
+                )}
+              </div>
+
+              {/* Data de Expiração */}
+              {form.payment_type !== 'brinde' && (
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1.5">Data de Expiração</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="date"
+                      value={form.expires_at}
+                      onChange={e => set('expires_at', e.target.value)}
+                      className="input-field pl-10"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Observações */}
               <div>

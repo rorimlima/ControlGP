@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { TrendingUp, LogIn, UserPlus, Shield, Wifi, Smartphone, Lock } from 'lucide-react';
+import { TrendingUp, LogIn, Shield, Wifi, Smartphone, Lock } from 'lucide-react';
 
 const FEATURE_PILLS = [
   { icon: Shield,     label: 'Seguro' },
@@ -127,37 +127,6 @@ export default function LandingPage() {
             >
               <LogIn style={{ width: 16, height: 16 }} />
               Acessar o sistema
-            </Link>
-
-            <Link
-              to="/registro"
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '12px 20px',
-                borderRadius: 10,
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: 'var(--color-dark-muted)',
-                border: '1px solid var(--color-dark-border)',
-                background: 'rgba(255,255,255,0.02)',
-                textDecoration: 'none',
-                textAlign: 'center',
-                transition: 'color 0.15s ease, background 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#e2e8f4';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--color-dark-muted)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-              }}
-            >
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <UserPlus style={{ width: 14, height: 14 }} />
-                Criar conta
-              </span>
             </Link>
           </motion.div>
 

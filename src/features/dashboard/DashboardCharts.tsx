@@ -112,59 +112,59 @@ export default function DashboardCharts({ lancamentos }: Props) {
   }, [lancamentos]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
       {/* Receitas x Despesas */}
-      <motion.div variants={itemVariants} className="card p-5">
-        <h3 className="text-sm font-semibold text-white mb-4">Receitas x Despesas</h3>
-        <div className="h-64">
+      <motion.div variants={itemVariants} className="card p-4 md:p-5 overflow-hidden">
+        <h3 className="text-xs md:text-sm font-semibold text-white mb-3">Receitas × Despesas</h3>
+        <div className="chart-container" style={{ height: 'clamp(180px, 30vw, 240px)' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={fluxoCaixa} barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+            <BarChart data={fluxoCaixa} barGap={4} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={32} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="receitas" name="Receitas" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={32} />
-              <Bar dataKey="despesas" name="Despesas" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="receitas" name="Receitas" fill="#10b981" radius={[5, 5, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="despesas" name="Despesas" fill="#ef4444" radius={[5, 5, 0, 0]} maxBarSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </motion.div>
 
       {/* Evolução Patrimonial */}
-      <motion.div variants={itemVariants} className="card p-5">
-        <h3 className="text-sm font-semibold text-white mb-4">Evolução Patrimonial</h3>
-        <div className="h-64">
+      <motion.div variants={itemVariants} className="card p-4 md:p-5 overflow-hidden">
+        <h3 className="text-xs md:text-sm font-semibold text-white mb-3">Evolução Patrimonial</h3>
+        <div className="chart-container" style={{ height: 'clamp(180px, 30vw, 240px)' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={evolucaoPatrimonial}>
+            <AreaChart data={evolucaoPatrimonial} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradPatrimonio" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
                   <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={32} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="patrimonio" name="Patrimônio" stroke="#3b82f6" fill="url(#gradPatrimonio)" strokeWidth={2} />
+              <Area type="monotone" dataKey="patrimonio" name="Patrimônio" stroke="#3b82f6" fill="url(#gradPatrimonio)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </motion.div>
 
       {/* Despesas por Categoria */}
-      <motion.div variants={itemVariants} className="card p-5">
-        <h3 className="text-sm font-semibold text-white mb-4">Despesas por Categoria</h3>
-        <div className="h-64">
+      <motion.div variants={itemVariants} className="card p-4 md:p-5 overflow-hidden">
+        <h3 className="text-xs md:text-sm font-semibold text-white mb-3">Despesas por Categoria</h3>
+        <div className="chart-container" style={{ height: 'clamp(180px, 30vw, 240px)' }}>
           {despesasPorCategoria.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={despesasPorCategoria}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
+                  cy="45%"
+                  innerRadius="38%"
+                  outerRadius="60%"
                   paddingAngle={3}
                   dataKey="value"
                 >
@@ -175,13 +175,13 @@ export default function DashboardCharts({ lancamentos }: Props) {
                 <Tooltip formatter={(v: any) => formatCurrency(Number(v))} />
                 <Legend
                   iconType="circle"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }}
+                  iconSize={7}
+                  wrapperStyle={{ fontSize: '10px', color: '#94a3b8' }}
                 />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+            <div className="h-full flex items-center justify-center text-slate-600 text-xs">
               Sem dados para exibir
             </div>
           )}
@@ -189,11 +189,11 @@ export default function DashboardCharts({ lancamentos }: Props) {
       </motion.div>
 
       {/* Fluxo de Caixa */}
-      <motion.div variants={itemVariants} className="card p-5">
-        <h3 className="text-sm font-semibold text-white mb-4">Fluxo de Caixa</h3>
-        <div className="h-64">
+      <motion.div variants={itemVariants} className="card p-4 md:p-5 overflow-hidden">
+        <h3 className="text-xs md:text-sm font-semibold text-white mb-3">Fluxo de Caixa</h3>
+        <div className="chart-container" style={{ height: 'clamp(180px, 30vw, 240px)' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={fluxoCaixa}>
+            <AreaChart data={fluxoCaixa} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradReceitas" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
@@ -204,12 +204,12 @@ export default function DashboardCharts({ lancamentos }: Props) {
                   <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} width={32} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="receitas" name="Receitas" stroke="#10b981" fill="url(#gradReceitas)" strokeWidth={2} />
-              <Area type="monotone" dataKey="despesas" name="Despesas" stroke="#ef4444" fill="url(#gradDespesas)" strokeWidth={2} />
+              <Area type="monotone" dataKey="receitas" name="Receitas" stroke="#10b981" fill="url(#gradReceitas)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="despesas" name="Despesas" stroke="#ef4444" fill="url(#gradDespesas)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

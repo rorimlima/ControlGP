@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -61,6 +61,12 @@ export default function LoginPage() {
         navigate('/acesso-negado'); 
         return; 
       }
+      if (result.error === 'PROFILE_NOT_FOUND') {
+        const msg = 'Perfil não encontrado. Contate o administrador.';
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
       const errorMsg = result.error === 'Invalid login credentials'
           ? 'Email ou senha incorretos'
           : 'Erro ao entrar. Tente novamente.';
@@ -68,7 +74,12 @@ export default function LoginPage() {
       toast.error(errorMsg);
     } else {
       toast.success('Login realizado com sucesso!');
-      navigate('/dashboard', { replace: true });
+      // Role-based routing
+      if (result.role === 'master') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
   };
 

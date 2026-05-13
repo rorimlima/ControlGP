@@ -4,10 +4,13 @@ import { useAuthStore } from '@/stores/auth-store';
 import { motion } from 'framer-motion';
 
 export default function AuthLayout() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, profile } = useAuthStore();
 
   if (isLoading) return null;
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  if (isAuthenticated) {
+    const dest = profile?.role === 'master' ? '/admin' : '/dashboard';
+    return <Navigate to={dest} replace />;
+  }
 
   return (
     <div

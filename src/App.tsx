@@ -11,6 +11,7 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 const LandingPage = lazy(() => import('@/features/landing/LandingPage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
 const AccessDeniedPage = lazy(() => import('@/features/auth/AccessDeniedPage'));
+const SubscriptionExpiredPage = lazy(() => import('@/features/auth/SubscriptionExpiredPage'));
 const AdminPage = lazy(() => import('@/features/admin/AdminPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
 const LancamentosPage = lazy(() => import('@/features/lancamentos/LancamentosPage'));
@@ -20,12 +21,21 @@ const CartoesPage = lazy(() => import('@/features/cartoes/CartoesPage'));
 const MetasPage = lazy(() => import('@/features/metas/MetasPage'));
 const ConfiguracoesPage = lazy(() => import('@/features/configuracoes/ConfiguracoesPage'));
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isAuthorized, isLoading } = useAuthStore();
+function ProtectedRoute({ children, requireMaster = false }: { children: React.ReactNode; requireMaster?: boolean }) {
+  const { isAuthenticated, isLoading, profile, isSubscriptionActive } = useAuthStore();
   
   if (isLoading) return <LoadingScreen />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (isAuthorized === false) return <Navigate to="/acesso-negado" replace />;
+  if (!isAuthenticated || !profile) return <Navigate to="/login" replace />;
+  
+  // Master-only route check
+  if (requireMaster && profile.role !== 'master') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Subscription check for non-master users
+  if (profile.role !== 'master' && !isSubscriptionActive()) {
+    return <Navigate to="/assinatura-expirada" replace />;
+  }
   
   return <>{children}</>;
 }
@@ -56,11 +66,12 @@ export default function App() {
     };
   }, [setIsOnline]);
 
-  // Responsive detection
+  // Responsive detection — initialize immediately + listen for changes
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check(); // run on mount so we never flash the wrong layout
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, [setIsMobile]);
 
   return (
@@ -76,12 +87,13 @@ export default function App() {
 
         {/* Access Denied */}
         <Route path="/acesso-negado" element={<AccessDeniedPage />} />
+        <Route path="/assinatura-expirada" element={<SubscriptionExpiredPage />} />
 
-        {/* Admin Panel — Control Master GP */}
+        {/* Admin Panel — Master Only */}
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireMaster>
               <AdminPage />
             </ProtectedRoute>
           }
