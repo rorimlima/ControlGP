@@ -13,6 +13,7 @@ import { generateActivityReport } from '@/lib/pdf-report';
 import { useAuthStore } from '@/stores/auth-store';
 import DashboardCharts from './DashboardCharts';
 import FinancialSummaryCards from './FinancialSummaryCards';
+import FutureFlowList from './FutureFlowList';
 
 const fade = { hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.28 } } };
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } };
@@ -90,12 +91,16 @@ export default function DashboardPage() {
           </p>
         </div>
         <button
-          onClick={() => generateActivityReport({
-            title: 'Relatório de Atividades', userName: profile?.nome || 'Usuário',
-            periodo: mesAtual,
-            lancamentos: lancMes.map(l => ({ descricao: l.descricao, tipo: l.tipo, valor: l.valor, data_competencia: l.data_competencia, status: l.status })),
-            resumo: { totalReceitas: receitasMes, totalDespesas: despesasMes, saldo: receitasMes - despesasMes },
-          })}
+          onClick={() => {
+            const allReceitas = lancs.filter(l => l.tipo === 'receita' && l.status === 'pago').reduce((s, l) => s + l.valor, 0);
+            const allDespesas = lancs.filter(l => l.tipo === 'despesa' && l.status === 'pago').reduce((s, l) => s + l.valor, 0);
+            generateActivityReport({
+              title: 'Relatório Consolidado de Atividades', userName: profile?.nome || 'Usuário',
+              periodo: 'Todos os Períodos',
+              lancamentos: lancs.filter(l => !l.deleted_at).map(l => ({ descricao: l.descricao, tipo: l.tipo, valor: l.valor, data_competencia: l.data_competencia, data_vencimento: l.data_vencimento, status: l.status })),
+              resumo: { totalReceitas: allReceitas, totalDespesas: allDespesas, saldo: allReceitas - allDespesas },
+            });
+          }}
           className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5"
         >
           <FileDown className="w-3.5 h-3.5" /> PDF
@@ -107,16 +112,16 @@ export default function DashboardPage() {
         {kpis.map(k => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className="kpi-card rounded-xl p-3 border transition-all" style={{ background: 'var(--color-dark-card)', borderColor: 'var(--color-dark-border)' }}>
-              <div className="flex items-center justify-between mb-2">
-                <div className={`w-7 h-7 rounded-lg ${k.bg} flex items-center justify-center`}>
-                  <Icon className={`w-3.5 h-3.5 ${k.color}`} />
+            <div key={k.label} className="kpi-card rounded-xl p-3.5 border transition-all" style={{ background: 'var(--color-dark-card)', borderColor: 'var(--color-dark-border)' }}>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className={`w-8 h-8 rounded-lg ${k.bg} flex items-center justify-center`}>
+                  <Icon className={`w-4 h-4 ${k.color}`} />
                 </div>
-                {k.trend === 'up'   && <ArrowUpRight   className="w-3 h-3 text-emerald-500 opacity-60" />}
-                {k.trend === 'down' && <ArrowDownRight  className="w-3 h-3 text-red-500 opacity-60" />}
+                {k.trend === 'up'   && <ArrowUpRight   className="w-3.5 h-3.5 text-emerald-500 opacity-60" />}
+                {k.trend === 'down' && <ArrowDownRight  className="w-3.5 h-3.5 text-red-500 opacity-60" />}
               </div>
-              <p className="text-[10px] font-medium mb-0.5 truncate" style={{ color: 'var(--color-dark-muted)' }}>{k.label}</p>
-              <p className={`text-sm font-bold leading-tight ${k.color}`}>{k.value}</p>
+              <p className="text-xs font-semibold mb-1 truncate uppercase tracking-wider" style={{ color: 'var(--color-dark-muted)' }}>{k.label}</p>
+              <p className={`text-lg font-extrabold leading-tight ${k.color}`}>{k.value}</p>
             </div>
           );
         })}
@@ -124,6 +129,9 @@ export default function DashboardPage() {
 
       {/* ── Financial Summary Cards ────────────────── */}
       <FinancialSummaryCards lancamentos={lancAll} />
+
+      {/* ── Projeção de Fluxo Futuro ───────────────── */}
+      <FutureFlowList lancamentos={lancAll} />
 
       {/* ── Row: Contas + Cartões ──────────────────── */}
       <motion.div variants={fade} className="grid grid-cols-1 lg:grid-cols-2 gap-4">

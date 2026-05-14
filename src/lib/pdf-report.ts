@@ -7,6 +7,7 @@ interface LancamentoData {
   tipo: string;
   valor: number;
   data_competencia: string;
+  data_vencimento?: string;
   status: string;
   categoria_nome?: string;
 }
@@ -80,41 +81,97 @@ export function generateActivityReport(options: ReportOptions) {
     doc.text(card.value, x + 6, cardY + 18);
   });
 
-  // ─── Table ─────────────────────────────────
-  const tableData = lancamentos.map(l => [
-    l.data_competencia ? new Date(l.data_competencia + 'T12:00:00').toLocaleDateString('pt-BR') : '-',
-    l.descricao,
-    l.tipo === 'receita' ? 'Receita' : l.tipo === 'despesa' ? 'Despesa' : 'Transf.',
-    formatCurrency(l.valor),
-    l.status === 'pago' ? 'Pago' : l.status === 'pendente' ? 'Pendente' : l.status === 'vencido' ? 'Vencido' : l.status,
-  ]);
+  // ─── Lançamentos por Mês ──────────────────
+  let currentY = cardY + 32;
 
-  autoTable(doc, {
-    startY: cardY + 32,
-    head: [['Data', 'Descrição', 'Tipo', 'Valor', 'Status']],
-    body: tableData,
-    theme: 'striped',
-    headStyles: {
-      fillColor: [15, 23, 42],
-      textColor: 255,
-      fontSize: 8,
-      fontStyle: 'bold',
-    },
-    bodyStyles: {
-      fontSize: 8,
-      textColor: [30, 41, 59],
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    columnStyles: {
-      0: { cellWidth: 24 },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 28, halign: 'right' },
-      4: { cellWidth: 22 },
-    },
-    margin: { left: 14, right: 14 },
+  // Agrupar por mês
+  const grouped: Record<string, LancamentoData[]> = {};
+  lancamentos.forEach(l => {
+    const d = l.data_competencia || l.data_vencimento;
+    const key = d ? d.substring(0, 7) : 'Sem Data';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(l);
+  });
+
+  const sortedMonths = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+  sortedMonths.forEach(monthKey => {
+    // Add page if near bottom before starting a new month
+    if (currentY > doc.internal.pageSize.getHeight() - 40) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    const monthLancs = grouped[monthKey];
+    monthLancs.sort((a, b) => (b.data_competencia || '').localeCompare(a.data_competencia || '')); // Descendente
+
+    // Título do Mês
+    let monthName = monthKey;
+    if (monthKey !== 'Sem Data') {
+      const [year, month] = monthKey.split('-');
+      const dateObj = new Date(parseInt(year), parseInt(month) - 1, 1);
+      monthName = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+    }
+
+    // Totais do Mês
+    const recTotal = monthLancs.filter(l => l.tipo === 'receita').reduce((sum, l) => sum + l.valor, 0);
+    const despTotal = monthLancs.filter(l => l.tipo === 'despesa').reduce((sum, l) => sum + l.valor, 0);
+    const saldo = recTotal - despTotal;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text(monthName, 14, currentY);
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(16, 185, 129); // emerald
+    doc.text(`Receitas: ${formatCurrency(recTotal)}`, 14, currentY + 6);
+    doc.setTextColor(239, 68, 68); // rose
+    doc.text(` |  Despesas: ${formatCurrency(despTotal)}`, 14 + doc.getTextWidth(`Receitas: ${formatCurrency(recTotal)}`), currentY + 6);
+    doc.setTextColor(saldo >= 0 ? 59 : 239, saldo >= 0 ? 130 : 68, saldo >= 0 ? 246 : 68); // blue ou rose
+    doc.text(` |  Saldo: ${formatCurrency(saldo)}`, 14 + doc.getTextWidth(`Receitas: ${formatCurrency(recTotal)} |  Despesas: ${formatCurrency(despTotal)}`), currentY + 6);
+
+    currentY += 10;
+
+    const tableData = monthLancs.map(l => [
+      l.data_competencia ? new Date(l.data_competencia + 'T12:00:00').toLocaleDateString('pt-BR') : '-',
+      l.descricao,
+      l.tipo === 'receita' ? 'Receita' : l.tipo === 'despesa' ? 'Despesa' : 'Transf.',
+      formatCurrency(l.valor),
+      l.status === 'pago' ? 'Pago' : l.status === 'pendente' ? 'Pendente' : l.status === 'vencido' ? 'Vencido' : l.status,
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Data', 'Descrição', 'Tipo', 'Valor', 'Status']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: 255,
+        fontSize: 8,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [30, 41, 59],
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      columnStyles: {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 28, halign: 'right' },
+        4: { cellWidth: 22 },
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 12;
   });
 
   // ─── Footer ────────────────────────────────
