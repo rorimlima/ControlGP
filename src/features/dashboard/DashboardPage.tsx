@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/utils';
 import { generateActivityReport } from '@/lib/pdf-report';
 import { useAuthStore } from '@/stores/auth-store';
 import DashboardCharts from './DashboardCharts';
+import FinancialSummaryCards from './FinancialSummaryCards';
 
 const fade = { hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0, transition: { duration: 0.28 } } };
 const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } };
@@ -120,6 +121,9 @@ export default function DashboardPage() {
           );
         })}
       </motion.div>
+
+      {/* ── Financial Summary Cards ────────────────── */}
+      <FinancialSummaryCards lancamentos={lancAll} />
 
       {/* ── Row: Contas + Cartões ──────────────────── */}
       <motion.div variants={fade} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
